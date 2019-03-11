@@ -129,6 +129,19 @@ module processor(
 	
 	dff_xm dff_xm1 (.ir_in(ir_dx), .o_in(o_out_alu), .b_in(b_dx), .clk(clock), .clrn(1'b1), 
 		.prn(1'b1), .ena(1'b1), .ir(ir_xm), .o(o_xm), .b(b_xm));
+		
+	wire [4:0] opcode_x;
+	assign opcode_x = ir_dx[31:27];
+	
+	wire [4:0] rd_x, rs_x, rt_x;
+	assign rd_x = ir_dx[26:22];
+	assign rs_x = ir_dx[21:17];
+	assign rt_x = ir_dx[16:12];
+	
+	wire [4:0] aluop = ir_dx[6:2];
+	
+	wire isR_x;
+	assign isR_x = ~opcode_x[4] & ~opcode_x[3] & ~opcode_x[2] & ~opcode_x[1] & ~opcode_x[0];
 	
 	
 	//========================================= Memory Stage
