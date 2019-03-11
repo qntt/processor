@@ -104,6 +104,24 @@ module processor(
 	
 	dff_dx dff_dx1 (.ir_in(ir_fd), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
 		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_dx), .pc(pc_dx), .a(a_dx), .b(b_dx));
+		
+	wire [4:0] opcode_d;
+	assign opcode_d = ir_fd[31:27];
+	
+	wire [4:0] rd_d, rs_d, rt_d;
+	assign rd_d = ir_fd[26:22];
+	assign rs_d = ir_fd[21:17];
+	assign rt_d = ir_fd[16:12];
+	
+	assign ctrl_readRegA = rs_d;
+	assign ctrl_readRegB = rt_d;
+	
+	wire isR_d;
+	assign isR_d = ~opcode_d[4] & ~opcode_d[3] & ~opcode_d[2] & ~opcode_d[1] & ~opcode_d[0];
+	
+	assign a_dx = data_readRegA;
+	// assign register value or immediate value
+	assign b_dx[15:0] = isR_d ? data_readRegB : ir_fd[16:0]; 
 	
 	//========================================= Execute Stage
 	
