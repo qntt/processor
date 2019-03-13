@@ -92,6 +92,9 @@ module processor(
 	 
 	 
 	//========================================= Fetch Stage
+	
+	wire negclock;
+	assign negclock = ~clock;
 	 
 	wire [31:0] pc, ir_fd, pc_fd, next_pc;
 	 
@@ -101,6 +104,7 @@ module processor(
 	wire [31:0] pc_data_in;
 	assign pc_data_in = reset ? 32'd0 : next_pc;
 	dflipflop pc_dff (.d(pc_data_in), .clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(pc));
+	assign address_imem = pc;
 	
 	alu alu_next_pc (.data_operandA(pc), .data_operandB(32'd4), .ctrl_ALUopcode(5'b00000),
 		.ctrl_shiftamt(5'b00000), .data_result(next_pc), .isNotEqual(), 
