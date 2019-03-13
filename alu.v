@@ -511,4 +511,90 @@ module two_complement (out, in);
 					.in2(1'b1), .cout(overflow), .cin(1'b0));
 	*/
 
-endmodule ￵훒ￚ쫅ￏ啐ｚ啐ｚ啐ｚ啐ｚ啐ｚ啐ｚ啐ｚ啐ｚ啐ｚ啐ｚ￡￪坓
+endmodule 
+
+module mux_21 (out, a, b, ctrl);
+	
+	input [31:0] a, b;
+	input ctrl;
+	
+	output [31:0] out;
+
+	assign out = ctrl ? b : a;
+
+endmodule 
+
+module mux_21_all_1bit (out, in1, in2, enable);
+
+	input in1, in2;
+	input enable;
+	
+	output out;
+	
+	assign out = enable ? in2 : in1;
+
+endmodule 
+
+module mux_2_1 (out, in1, in2, enable);
+
+	input [31:0] in1, in2;
+	input enable;
+	
+	output [31:0] out;
+	
+	assign out = enable ? in2 : in1;
+
+endmodule 
+
+module mux_32_1 (out, in0, in1, in2, in3, in4, in5, in6, in7,
+							in8, in9, in10, in11, in12, in13, in14, in15,
+							in16, in17, in18, in19, in20, in21, in22, in23,
+							in24, in25, in26, in27, in28, in29, in30, in31, select);
+
+	input [31:0] in0, in1, in2, in3, in4, in5, in6, in7;
+	input [31:0] in8, in9, in10, in11, in12, in13, in14, in15;
+	input [31:0] in16, in17, in18, in19, in20, in21, in22, in23;
+	input [31:0] in24, in25, in26, in27, in28, in29, in30, in31;
+	input [4:0] select;
+	
+	output [31:0] out;
+	
+	wire [31:0] w1, w2, w3, w4;
+	mux_8_1 m1 (w1, in0, in1, in2, in3, in4, in5, in6, in7, select[2:0]);
+	mux_8_1 m2 (w2, in8, in9, in10, in11, in12, in13, in14, in15, select[2:0]);
+	mux_8_1 m3 (w3, in16, in17, in18, in19, in20, in21, in22, in23, select[2:0]);
+	mux_8_1 m4 (w4, in24, in25, in26, in27, in28, in29, in30, in31, select[2:0]);
+	
+	mux_4_1 m5 (out, w1, w2, w3, w4, select[4:3]);
+	
+endmodule 
+
+module mux_4_1 (out, in0, in1, in2, in3, select);
+
+	input [31:0] in0, in1, in2, in3;
+	input [1:0] select;
+	
+	output [31:0] out;
+	
+	wire [31:0] w1, w2;
+	mux_2_1 m1 (w1, in0, in1, select[0]);
+	mux_2_1 m2 (w2, in2, in3, select[0]);
+	
+	mux_2_1 m3 (out, w1, w2, select[1]);
+
+endmodule 
+
+module mux_8_1 (out, in0, in1, in2, in3, in4, in5, in6, in7, select);
+
+	input [31:0] in0, in1, in2, in3, in4, in5, in6, in7;
+	input [2:0] select;
+	
+	output [31:0] out;
+	
+	wire [31:0] w1, w2;
+	mux_4_1 m1 (w1, in0, in1, in2, in3, select[1:0]);
+	mux_4_1 m2 (w2, in4, in5, in6, in7, select[1:0]);
+	
+	mux_2_1 m3 (out, w1, w2, select[2]);
+
+endmodule 

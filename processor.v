@@ -93,10 +93,18 @@ module processor(
 	 
 	//========================================= Fetch Stage
 	 
-	wire [31:0] pc, ir_fd, pc_fd;
+	wire [31:0] pc, ir_fd, pc_fd, next_pc;
 	 
-	dff_fd dff_fd1 (.ir_in(q_imem), .pc_in(pc), .clk(clock), .clrn1(1'b1), .prn(1'b1), 
+	dff_fd dff_fd1 (.ir_in(q_imem), .pc_in(pc), .clk(clock), .clrn(1'b1), .prn(1'b1), 
 		.ena(1'b1), .ir(ir_fd), .pc(pc_fd));
+		
+	wire [31:0] pc_data_in;
+	assign pc_data_in = reset ? 32'd0 : next_pc;
+	dflipflop pc_dff (.d(pc_data_in), .clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(pc));
+	
+	alu alu_next_pc (.data_operandA(pc), .data_operandB(32'd4), .ctrl_ALUopcode(5'b00000),
+		.ctrl_shiftamt(5'b00000), .data_result(next_pc), .isNotEqual(), 
+		.isLessThan(), .overflow());
 		
 	//========================================= Decode Stage	
 	
@@ -125,13 +133,13 @@ module processor(
 	
 	//========================================= Execute Stage
 	
-	wire [31:0] ir_xm, o_xm, b_xm, o_out_alu;
+	wire [31:0] ir_xm, o_xm, b_xm, alu_out;
 	
-	dff_xm dff_xm1 (.ir_in(ir_dx), .o_in(o_out_alu), .b_in(b_dx), .clk(clock), .clrn(1'b1), 
+	dff_xm dff_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(b_dx), .clk(clock), .clrn(1'b1), 
 		.prn(1'b1), .ena(1'b1), .ir(ir_xm), .o(o_xm), .b(b_xm));
 		
-	wire [4:0] opcode_x;
-	assign opcode_x = ir_dx[31:27];
+	wire [4:0] opx;
+	assign opx = ir_dx[31:27];
 	
 	wire [4:0] rd_x, rs_x, rt_x;
 	assign rd_x = ir_dx[26:22];
@@ -139,10 +147,26 @@ module processor(
 	assign rt_x = ir_dx[16:12];
 	
 	wire [4:0] aluop = ir_dx[6:2];
+	wire [4:0] shamt = ir_dx[11:7];
+	wire [16:0] immediate = ir_dx[16:0];
 	
-	wire isR_x;
-	assign isR_x = ~opcode_x[4] & ~opcode_x[3] & ~opcode_x[2] & ~opcode_x[1] & ~opcode_x[0];
+	wire isNotEqual_x, isLessThan_x, overflow_x;
 	
+	wire [31:0] signextend;
+	assign signextend[16:0] = immediate[16:0];
+	assign signextend[31:17] = immediate[16] ? 15'b111111111111111 : 15'b0;
+	
+	wire isI_x;
+	assign isI_x = (~opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0]) | (~opx[4]&~opx[3]&opx[2]&opx[1]&opx[0])
+		| (~opx[4]&opx[3]&~opx[2]&~opx[1]&~opx[0]);
+	
+	wire [31:0] alu_input_2;
+	assign alu_input_2 = isI_x ? signextend : b_dx;
+	
+	
+	alu alu1 (.data_operandA(a_dx), .data_operandB(alu_input_2), .ctrl_ALUopcode(aluop),
+		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(isNotEqual_x), 
+		.isLessThan(isLessThan_x), .overflow(overflow_x));
 	
 	//========================================= Memory Stage
 	
@@ -150,9 +174,42 @@ module processor(
 	
 	dff_mw dff_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clk(clock), 
 		.clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_mw), .o(o_mw), .d(d_mw));
+		
+	wire [4:0] opcode_m;
+	assign opcode_m = ir_xm[31:27];
+	
+	wire [4:0] rd_m, rs_m, rt_m;
+	assign rd_m = ir_xm[26:22];
+	assign rs_m = ir_xm[21:17];
+	assign rt_m = ir_xm[16:12];
+	
+	wire isR_m, isALU;
+	assign isR_m = ~opcode_m[4] & ~opcode_m[3] & ~opcode_m[2] & ~opcode_m[1] & ~opcode_m[0];
+	
 	
 	
 	//========================================= Write-back Stage
+	
+	wire [4:0] opw;
+	assign opw = ir_mw[31:27];
+	
+	wire [4:0] rd_w, rs_w, rt_w;
+	assign rd_w = ir_mw[26:22];
+	assign rs_w = ir_mw[21:17];
+	assign rt_w = ir_mw[16:12];
+	
+	// Regfile
+	wire isALUOp;
+   assign isALUOp = (~opw[4]&~opw[3]&~opw[2]&~opw[1]&~opw[0]) 
+		| (~opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0]) ;
+	assign isLoadOp = (~opw[4]&opw[3]&~opw[2]&~opw[1]&~opw[0]);
+	
+	assign ctrl_writeEnable = isALUOp | isLoadOp;
+	
+   assign ctrl_writeReg = rd_w;
+   assign data_writeReg = isLoadOp ? d_mw : o_mw;
+	
+	
 	 
 
 endmodule 
