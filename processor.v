@@ -96,17 +96,22 @@ module processor(
 	wire negclock;
 	assign negclock = ~clock;
 	 
-	wire [31:0] pc, ir_fd, pc_fd, next_pc;
+	wire [31:0] pc;
+	wire [31:0] ir_fd, pc_fd, next_pc;
 	 
-	dff_fd dff_fd1 (.ir_in(q_imem), .pc_in(pc), .clk(clock), .clrn(1'b1), .prn(1'b1), 
-		.ena(1'b1), .ir(ir_fd), .pc(pc_fd));
+	//dff_fd dff_fd1 (.ir_in(q_imem), .pc_in(next_pc), .clk(clock), .clrn(1'b1), .prn(1'b1), 
+	//	.ena(1'b1), .ir(ir_fd), .pc(pc_fd));
+	
+	latch_fd latch_fd1 (.ir_in(q_imem), .pc_in(next_pc), .clock(clock), .reset(reset), 
+		.ir_out(ir_fd), .pc_out(pc_fd));
 		
 	wire [31:0] pc_data_in;
-	assign pc_data_in = reset ? 32'd0 : next_pc;
-	dflipflop pc_dff (.d(pc_data_in), .clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(pc));
+	assign pc_data_in = next_pc;
+	//dflipflop pc_dff (.d(pc_data_in), .clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(pc));
+	latch_pc latch_pc1 (.pc_in(pc_data_in), .clock(clock), .reset(reset), .pc_out(pc));
 	assign address_imem = pc;
 	
-	alu alu_next_pc (.data_operandA(pc), .data_operandB(32'd4), .ctrl_ALUopcode(5'b00000),
+	alu alu_next_pc (.data_operandA(pc), .data_operandB(32'd1), .ctrl_ALUopcode(5'b00000),
 		.ctrl_shiftamt(5'b00000), .data_result(next_pc), .isNotEqual(), 
 		.isLessThan(), .overflow());
 		
@@ -114,8 +119,11 @@ module processor(
 	
 	wire [31:0] ir_dx, pc_dx, a_dx, b_dx, a_out_regfile, b_out_regfile;
 	
-	dff_dx dff_dx1 (.ir_in(ir_fd), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
-		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_dx), .pc(pc_dx), .a(a_dx), .b(b_dx));
+	//dff_dx dff_dx1 (.ir_in(ir_fd), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
+	//	.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_dx), .pc(pc_dx), .a(a_dx), .b(b_dx));
+		
+	latch_dx latch_dx1 (.ir_in(ir_fd), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
+		.clock(clock), .reset(reset), .ir_out(ir_dx), .pc_out(pc_dx), .a_out(a_dx), .b_out(b_dx));
 		
 	wire [4:0] opcode_d;
 	assign opcode_d = ir_fd[31:27];
@@ -139,8 +147,11 @@ module processor(
 	
 	wire [31:0] ir_xm, o_xm, b_xm, alu_out;
 	
-	dff_xm dff_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(b_dx), .clk(clock), .clrn(1'b1), 
-		.prn(1'b1), .ena(1'b1), .ir(ir_xm), .o(o_xm), .b(b_xm));
+	//dff_xm dff_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(b_dx), .clk(clock), .clrn(1'b1), 
+	//	.prn(1'b1), .ena(1'b1), .ir(ir_xm), .o(o_xm), .b(b_xm));
+	
+	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(b_dx), .clock(clock), .reset(reset), 
+		.ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm));
 		
 	wire [4:0] opx;
 	assign opx = ir_dx[31:27];
@@ -167,8 +178,10 @@ module processor(
 	wire [31:0] alu_input_2;
 	assign alu_input_2 = isI_x ? signextend : b_dx;
 	
+	wire [4:0] final_aluop = isI_x ? 5'b00000 : aluop;
 	
-	alu alu1 (.data_operandA(a_dx), .data_operandB(alu_input_2), .ctrl_ALUopcode(aluop),
+	
+	alu alu1 (.data_operandA(a_dx), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
 		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(isNotEqual_x), 
 		.isLessThan(isLessThan_x), .overflow(overflow_x));
 	
@@ -176,8 +189,11 @@ module processor(
 	
 	wire [31:0] ir_mw, o_mw, d_mw;
 	
-	dff_mw dff_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clk(clock), 
-		.clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_mw), .o(o_mw), .d(d_mw));
+	//dff_mw dff_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clk(clock), 
+	//	.clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_mw), .o(o_mw), .d(d_mw));
+	
+	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clock(clock), .reset(reset), 
+		.ir_out(ir_mw), .o_out(o_mw), .d_out(d_mw));
 		
 	wire [4:0] opcode_m;
 	assign opcode_m = ir_xm[31:27];
