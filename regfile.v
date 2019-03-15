@@ -61,10 +61,25 @@ module regfile (
 	
 	register r0(read_output[31:0], clock, 1'b0, ctrl_reset, data_writeReg);
 	
+	//wire [1023:0] intermediate;
+	
 	generate
 		genvar i;
 		for (i=1; i<32; i = i+1) begin: gen1
-			register r(read_output[32*(i+1)-1: 32*i], clock, write_enable_bit[i], ctrl_reset, data_writeReg);
+			register r1 (
+				 .data_out(read_output[32*(i+1)-1: 32*i]),
+				 .clock(clock),
+				 .ctrl_writeEnable(write_enable_bit[i]),
+				 .ctrl_reset(ctrl_reset), 
+				 .data_in(data_writeReg)
+			);
+			/*register_neg r2 (
+				 .data_out(read_output[32*(i+1)-1: 32*i]),
+				 .clock(clock),
+				 .ctrl_writeEnable(1'b1),
+				 .ctrl_reset(ctrl_reset), 
+				 .data_in(intermediate[32*(i+1)-1: 32*i])
+			);*/
 		end
 	endgenerate
 	

@@ -143,8 +143,14 @@ module processor(
 	wire isR_d;
 	assign isR_d = ~opd[4] & ~opd[3] & ~opd[2] & ~opd[1] & ~opd[0];
 	
+	// bypassing the updated write register value if write address matches rd
+	// similar to writing to register before reading in the same clock cycle
 	assign a_out_regfile = data_readRegA;
-	assign b_out_regfile = data_readRegB;	
+	wire rdNotEqualWriteAddress;
+	assign rdNotEqualWriteAddress = (rd_d[4]^ctrl_writeReg[4] | rd_d[3]^ctrl_writeReg[3] |
+		rd_d[2]^ctrl_writeReg[2] | rd_d[1]^ctrl_writeReg[1] | rd_d[0]^ctrl_writeReg[0]);
+	assign b_out_regfile = (~rdNotEqualWriteAddress & isSW_d)
+		? data_writeReg : data_readRegB;	
 	
 	//========================================= Execute Stage
 	
