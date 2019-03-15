@@ -5,7 +5,7 @@ input clock, reset;
 
 output [31:0] pc_out;
 
-register_neg pc (
+register pc (
     .data_out(pc_out),
 	 .clock(clock),
     .ctrl_writeEnable(1'b1),

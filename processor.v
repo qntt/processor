@@ -125,23 +125,26 @@ module processor(
 	latch_dx latch_dx1 (.ir_in(ir_fd), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
 		.clock(clock), .reset(reset), .ir_out(ir_dx), .pc_out(pc_dx), .a_out(a_dx), .b_out(b_dx));
 		
-	wire [4:0] opcode_d;
-	assign opcode_d = ir_fd[31:27];
+	wire [4:0] opd;
+	assign opd = ir_fd[31:27];
 	
 	wire [4:0] rd_d, rs_d, rt_d;
 	assign rd_d = ir_fd[26:22];
 	assign rs_d = ir_fd[21:17];
 	assign rt_d = ir_fd[16:12];
 	
+	wire isSW_d;
+	assign isSW_d =  ~opd[4] & ~opd[3] & opd[2] & opd[1] & opd[0];
+	
 	assign ctrl_readRegA = rs_d;
-	assign ctrl_readRegB = rt_d;
+	// if sw, then b_dx is value of rd
+	assign ctrl_readRegB = isSW_d ? rd_d : rt_d;
 	
 	wire isR_d;
-	assign isR_d = ~opcode_d[4] & ~opcode_d[3] & ~opcode_d[2] & ~opcode_d[1] & ~opcode_d[0];
+	assign isR_d = ~opd[4] & ~opd[3] & ~opd[2] & ~opd[1] & ~opd[0];
 	
-	assign a_dx = data_readRegA;
-	// assign register value or immediate value
-	assign b_dx[15:0] = isR_d ? data_readRegB : ir_fd[16:0]; 
+	assign a_out_regfile = data_readRegA;
+	assign b_out_regfile = data_readRegB;	
 	
 	//========================================= Execute Stage
 	
@@ -172,6 +175,8 @@ module processor(
 	assign signextend[31:17] = immediate[16] ? 15'b111111111111111 : 15'b0;
 	
 	wire isI_x;
+	// 00101 | 00111 | 01000
+	// addi | sw | lw
 	assign isI_x = (~opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0]) | (~opx[4]&~opx[3]&opx[2]&opx[1]&opx[0])
 		| (~opx[4]&opx[3]&~opx[2]&~opx[1]&~opx[0]);
 	
@@ -195,8 +200,8 @@ module processor(
 	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clock(clock), .reset(reset), 
 		.ir_out(ir_mw), .o_out(o_mw), .d_out(d_mw));
 		
-	wire [4:0] opcode_m;
-	assign opcode_m = ir_xm[31:27];
+	wire [4:0] opm;
+	assign opm = ir_xm[31:27];
 	
 	wire [4:0] rd_m, rs_m, rt_m;
 	assign rd_m = ir_xm[26:22];
@@ -204,8 +209,14 @@ module processor(
 	assign rt_m = ir_xm[16:12];
 	
 	wire isR_m, isALU;
-	assign isR_m = ~opcode_m[4] & ~opcode_m[3] & ~opcode_m[2] & ~opcode_m[1] & ~opcode_m[0];
+	assign isR_m = ~opm[4] & ~opm[3] & ~opm[2] & ~opm[1] & ~opm[0];
 	
+	assign address_dmem = o_xm[11:0];
+   assign data = b_xm;
+	
+	wire isSW_m;
+	assign isSW_m =  ~opm[4] & ~opm[3] & opm[2] & opm[1] & opm[0];
+   assign wren = isSW_m;
 	
 	
 	//========================================= Write-back Stage
@@ -220,6 +231,7 @@ module processor(
 	
 	// Regfile
 	wire isALUOp;
+	// 00000 | 00101
    assign isALUOp = (~opw[4]&~opw[3]&~opw[2]&~opw[1]&~opw[0]) 
 		| (~opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0]) ;
 	assign isLoadOp = (~opw[4]&opw[3]&~opw[2]&~opw[1]&~opw[0]);

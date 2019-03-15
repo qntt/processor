@@ -31,11 +31,11 @@ module skeleton(clock, reset);
     wire wren;
     wire [31:0] q_dmem;
     dmem my_dmem(
-        .address    (/* 12-bit wire */),       // address of data
+        .address    (/* 12-bit wire */address_dmem),       // address of data
         .clock      (~clock),                  // may need to invert the clock
-        .data	    (/* 32-bit data in */),    // data you want to write
-        .wren	    (/* 1-bit signal */),      // write enable
-        .q          (/* 32-bit data out */)    // data from dmem
+        .data	    (/* 32-bit data in */data),    // data you want to write
+        .wren	    (/* 1-bit signal */wren),      // write enable
+        .q          (/* 32-bit data out */q_dmem)    // data from dmem
     );
 
     /** REGFILE **/
