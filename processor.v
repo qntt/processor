@@ -90,6 +90,9 @@ module processor(
     output [31:0] data_writeReg;
     input [31:0] data_readRegA, data_readRegB;
 	 
+	 wire [4:0] rd_m, rs_m, rt_m;
+	 wire [4:0] rd_w, rs_w, rt_w;
+	 
 	 
 	//========================================= Fetch Stage
 	
@@ -158,9 +161,6 @@ module processor(
 	
 	//dff_xm dff_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(b_dx), .clk(clock), .clrn(1'b1), 
 	//	.prn(1'b1), .ena(1'b1), .ir(ir_xm), .o(o_xm), .b(b_xm));
-	
-	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(b_dx), .clock(clock), .reset(reset), 
-		.ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm));
 		
 	wire [4:0] opx;
 	assign opx = ir_dx[31:27];
@@ -185,16 +185,68 @@ module processor(
 	// addi | sw | lw
 	assign isI_x = (~opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0]) | (~opx[4]&~opx[3]&opx[2]&opx[1]&opx[0])
 		| (~opx[4]&opx[3]&~opx[2]&~opx[1]&~opx[0]);
+		
+	wire isSW_x;
+	assign isSW_x =  ~opx[4] & ~opx[3] & opx[2] & opx[1] & opx[0];
 	
+	wire [31:0] alu_input_1;
+	wire [31:0] pre_alu_input_2;
 	wire [31:0] alu_input_2;
-	assign alu_input_2 = isI_x ? signextend : b_dx;
+	assign alu_input_2 = isI_x ? signextend : pre_alu_input_2;
 	
 	wire [4:0] final_aluop = isI_x ? 5'b00000 : aluop;
 	
+	// ====== MX Bypassing
 	
-	alu alu1 (.data_operandA(a_dx), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
+	wire MX1;
+	equality5 mx1_eq (.out(MX1), .a(rd_m), .b(rs_x));
+	
+	wire MX2a, MX2b, MX2;
+	equality5 mx2a_eq (.out(MX2a), .a(rd_m), .b(rt_x));
+	equality5 mx2b_eq (.out(MX2b), .a(rd_m), .b(rd_x));
+	assign MX2 = MX2a | (MX2b & isSW_x);
+	
+	// ====== WX Bypassing
+	
+	wire WX1;
+	equality5 wx1_eq (.out(WX1), .a(rd_w), .b(rs_x));
+	
+	wire WX2a, WX2b, WX2;
+	equality5 wx2a_eq (.out(WX2a), .a(rd_w), .b(rt_x));
+	equality5 wx2b_eq (.out(WX2b), .a(rd_w), .b(rd_x));
+	assign WX2 = WX2a | (WX2b & isSW_x);
+	
+	// ====== Integrating MX and WX bypassing
+	
+	// selector for mux that determines alu_input_1 and alu_input_2
+	wire [1:0] sel1, sel1_wx, sel1_mx;
+	assign sel1 = 2'b10;
+	assign sel1_wx = WX1 ? 2'b01 : sel1;
+	assign sel1_mx = MX1 ? 2'b00 : sel1_wx;
+	
+	wire [1:0] sel2, sel2_wx, sel2_mx;
+	assign sel2 = 2'b10;
+	assign sel2_wx = WX2 ? 2'b01 : sel2;
+	assign sel2_mx = MX2 ? 2'b00 : sel2_wx;
+	
+	mux_4_1 mux_alu_input_1 (
+		.out(alu_input_1), 
+		.in0(o_xm), .in1(data_writeReg), .in2(a_dx), .in3(a_dx),
+		.select(sel1_mx));
+		
+	mux_4_1 mux_alu_input_2 (
+		.out(pre_alu_input_2), 
+		.in0(o_xm), .in1(data_writeReg), .in2(b_dx), .in3(b_dx),
+		.select(sel2_mx));
+	
+	
+	alu alu1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
 		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(isNotEqual_x), 
 		.isLessThan(isLessThan_x), .overflow(overflow_x));
+	
+	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(pre_alu_input_2), .clock(clock), 
+		.reset(reset), .ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm));
+	
 	
 	//========================================= Memory Stage
 	
@@ -209,7 +261,7 @@ module processor(
 	wire [4:0] opm;
 	assign opm = ir_xm[31:27];
 	
-	wire [4:0] rd_m, rs_m, rt_m;
+	// rd_m is defined at the top
 	assign rd_m = ir_xm[26:22];
 	assign rs_m = ir_xm[21:17];
 	assign rt_m = ir_xm[16:12];
@@ -230,7 +282,7 @@ module processor(
 	wire [4:0] opw;
 	assign opw = ir_mw[31:27];
 	
-	wire [4:0] rd_w, rs_w, rt_w;
+	// rd_w is defined at the top
 	assign rd_w = ir_mw[26:22];
 	assign rs_w = ir_mw[21:17];
 	assign rt_w = ir_mw[16:12];
@@ -249,5 +301,14 @@ module processor(
 	
 	
 	 
+
+endmodule 
+
+module equality5 (out, a, b);
+
+	input [4:0] a, b;
+	output out;
+
+	assign out = ~(a[4]^b[4] | a[3]^b[3] | a[2]^b[2] | a[1]^b[1] | a[0]^b[0]);
 
 endmodule 

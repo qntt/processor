@@ -19,6 +19,7 @@ module proc_tb();
 	 
 	 wire[31:0] d_mw = dut.my_processor.d_mw;
 	 wire[31:0] b_out_regfile = dut.my_processor.b_out_regfile;
+	 wire sel2_mx = dut.my_processor.sel2_mx;
 	 
     initial
     begin
@@ -27,7 +28,7 @@ module proc_tb();
         
         //$monitor("clock: %d, pc: %d, a_dx: %d, o_xm: %b, isI_x: %d, signextend: %b, alu_input_2: %b", clock, pc, a_dx, o_xm, isI_x, signextend, alu_input_2);
 		  
-		  $monitor("pc: %d, b_out_regfile: %d, o_xm: %d, b_xm: %d, d_mw: %d", pc, b_out_regfile, o_xm, b_xm, d_mw);
+		  $monitor("pc: %d, b_out_regfile: %d, sel2_mx: %d, o_xm: %d, b_xm: %d, d_mw: %d", pc, b_out_regfile, sel2_mx, o_xm, b_xm, d_mw);
 		  
 		  #(20*(CYCLE_LIMIT+1.5))
 
