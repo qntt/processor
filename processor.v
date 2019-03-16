@@ -93,6 +93,25 @@ module processor(
 	 wire [4:0] rd_m, rs_m, rt_m;
 	 wire [4:0] rd_w, rs_w, rt_w;
 	 
+	 wire isSW_m;
+	 wire isLW_m;
+	 wire isALUOp_m;
+	 wire isAddi_m;
+	 wire isBne_m;
+	 wire isJr_m;
+	 wire isBlt_m;
+	 wire isR_m;
+	 wire isI_m;
+	 
+	 wire isSW_w;
+	 wire isLW_w;
+	 wire isALUOp_w;
+	 wire isAddi_w;
+	 wire isBne_w;
+	 wire isJr_w;
+	 wire isBlt_w;
+	 wire isR_w;
+	 wire isI_w;
 	 
 	//========================================= Fetch Stage
 	
@@ -206,23 +225,40 @@ module processor(
 	
 	// ====== MX Bypassing
 	
-	wire MX1;
-	equality5 mx1_eq (.out(MX1), .a(rd_m), .b(rs_x));
+	/*
 	
-	wire MX2a, MX2b, MX2;
-	equality5 mx2a_eq (.out(MX2a), .a(rd_m), .b(rt_x));
-	equality5 mx2b_eq (.out(MX2b), .a(rd_m), .b(rd_x));
-	assign MX2 = (MX2a && (isALUOp_x)) || (MX2b && (isSW_x || isBne_x || isJr_x || isBlt_x));
+	Check if 
+	(1) register rs/rt/rd in x matches with rd in m
+	(2) if operation in x needs to use the updated value in rs/rt/rd
+	(3) if operation in m actually updates register rs/rt/rd
+	
+	*/
+	
+	wire reg_match_rs_mx, MX1;
+	equality5 mx1_eq (.out(reg_match_rs_mx), .a(rd_m), .b(rs_x));
+	assign MX1 = (reg_match_rs_mx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x))
+		&& (isALUOp_m || isAddi_m);
+	
+	wire reg_match_rt_mx, reg_match_rd_mx, MX2;
+	equality5 mx2a_eq (.out(reg_match_rt_mx), .a(rd_m), .b(rt_x));
+	equality5 mx2b_eq (.out(reg_match_rd_mx), .a(rd_m), .b(rd_x));
+	assign MX2 = ((reg_match_rt_mx && (isALUOp_x)) || 
+		(reg_match_rd_mx && (isSW_x || isBne_x || isJr_x || isBlt_x))) &&
+		(isALUOp_m || isAddi_m);
 	
 	// ====== WX Bypassing
 	
-	wire WX1;
-	equality5 wx1_eq (.out(WX1), .a(rd_w), .b(rs_x));
+	wire reg_match_rs_wx, WX1;
+	equality5 wx1_eq (.out(reg_match_rs_wx), .a(rd_w), .b(rs_x));
+	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x))
+		&& (isALUOp_w || isAddi_w);
 	
-	wire WX2a, WX2b, WX2;
-	equality5 wx2a_eq (.out(WX2a), .a(rd_w), .b(rt_x));
-	equality5 wx2b_eq (.out(WX2b), .a(rd_w), .b(rd_x));
-	assign WX2 = (WX2a && (isALUOp_x)) || (WX2b && (isSW_x || isBne_x || isJr_x || isBlt_x));
+	wire reg_match_rt_wx, reg_match_rd_wx, WX2;
+	equality5 wx2a_eq (.out(reg_match_rt_wx), .a(rd_w), .b(rt_x));
+	equality5 wx2b_eq (.out(reg_match_rd_wx), .a(rd_w), .b(rd_x));
+	assign WX2 = ((reg_match_rt_wx && (isALUOp_x)) || 
+		(reg_match_rd_wx && (isSW_x || isBne_x || isJr_x || isBlt_x))) &&
+		(isALUOp_w || isAddi_w);
 	
 	// ====== Integrating MX and WX bypassing
 	
@@ -274,14 +310,25 @@ module processor(
 	assign rs_m = ir_xm[21:17];
 	assign rt_m = ir_xm[16:12];
 	
-	wire isR_m, isALU;
-	assign isR_m = ~opm[4] & ~opm[3] & ~opm[2] & ~opm[1] & ~opm[0];
+	assign isSW_m = ~opm[4]&~opm[3]&opm[2]&opm[1]&opm[0];
+	assign isLW_m = ~opm[4]&opm[3]&~opm[2]&~opm[1]&~opm[0];
+	assign isALUOp_m = ~opm[4]&~opm[3]&~opm[2]&~opm[1]&~opm[0];
+	assign isAddi_m = ~opm[4]&~opm[3]&opm[2]&~opm[1]&opm[0];
+	assign isBne_m = ~opm[4]&~opm[3]&~opm[2]&opm[1]&~opm[0];
+	assign isJr_m = ~opm[4]&~opm[3]&opm[2]&~opm[1]&~opm[0];
+	assign isBlt_m = ~opm[4]&~opm[3]&opm[2]&opm[1]&~opm[0];
+	
+	assign isR_m = isALUOp_m;
+	assign isI_m = isAddi_m || isSW_m || isLW_m;
+	
+	// ====== WM Bypassing
+	
+	wire reg_match_wm, WM;
+	equality5 wm_eq (.out(reg_match_wm), .a(rd_w), .b(rd_m));
+	assign WM = reg_match_wm && (isSW_m && (isALUOp_w || isLW_w || isAddi_w));
 	
 	assign address_dmem = o_xm[11:0];
-   assign data = b_xm;
-	
-	wire isSW_m;
-	assign isSW_m =  ~opm[4] & ~opm[3] & opm[2] & opm[1] & opm[0];
+   assign data = WM ? data_writeReg : b_xm;
    assign wren = isSW_m;
 	
 	
@@ -295,17 +342,21 @@ module processor(
 	assign rs_w = ir_mw[21:17];
 	assign rt_w = ir_mw[16:12];
 	
-	// Regfile
-	wire isALUOp;
-	// 00000 | 00101
-   assign isALUOp = (~opw[4]&~opw[3]&~opw[2]&~opw[1]&~opw[0]) 
-		| (~opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0]) ;
-	assign isLoadOp = (~opw[4]&opw[3]&~opw[2]&~opw[1]&~opw[0]);
+	assign isSW_w = ~opw[4]&~opw[3]&opw[2]&opw[1]&opw[0];
+	assign isLW_w = ~opw[4]&opw[3]&~opw[2]&~opw[1]&~opw[0];
+	assign isALUOp_w = ~opw[4]&~opw[3]&~opw[2]&~opw[1]&~opw[0];
+	assign isAddi_w = ~opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0];
+	assign isBne_w = ~opw[4]&~opw[3]&~opw[2]&opw[1]&~opw[0];
+	assign isJr_w = ~opw[4]&~opw[3]&opw[2]&~opw[1]&~opw[0];
+	assign isBlt_w = ~opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
 	
-	assign ctrl_writeEnable = isALUOp | isLoadOp;
+	assign isR_w = isALUOp_w;
+	assign isI_w = isAddi_w || isSW_w || isLW_w;
+	
+	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w;
 	
    assign ctrl_writeReg = rd_w;
-   assign data_writeReg = isLoadOp ? d_mw : o_mw;
+   assign data_writeReg = isLW_w ? d_mw : o_mw;
 	
 	
 	 
