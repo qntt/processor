@@ -158,9 +158,6 @@ module processor(
 	//========================================= Execute Stage
 	
 	wire [31:0] ir_xm, o_xm, b_xm, alu_out;
-	
-	//dff_xm dff_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(b_dx), .clk(clock), .clrn(1'b1), 
-	//	.prn(1'b1), .ena(1'b1), .ir(ir_xm), .o(o_xm), .b(b_xm));
 		
 	wire [4:0] opx;
 	assign opx = ir_dx[31:27];
@@ -179,15 +176,26 @@ module processor(
 	wire [31:0] signextend;
 	assign signextend[16:0] = immediate[16:0];
 	assign signextend[31:17] = immediate[16] ? 15'b111111111111111 : 15'b0;
-	
-	wire isI_x;
-	// 00101 | 00111 | 01000
-	// addi | sw | lw
-	assign isI_x = (~opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0]) | (~opx[4]&~opx[3]&opx[2]&opx[1]&opx[0])
-		| (~opx[4]&opx[3]&~opx[2]&~opx[1]&~opx[0]);
-		
+			
 	wire isSW_x;
-	assign isSW_x =  ~opx[4] & ~opx[3] & opx[2] & opx[1] & opx[0];
+	assign isSW_x = ~opx[4]&~opx[3]&opx[2]&opx[1]&opx[0];
+	wire isLW_x;
+	assign isLW_x = ~opx[4]&opx[3]&~opx[2]&~opx[1]&~opx[0];
+	wire isALUOp_x;
+	assign isALUOp_x = ~opx[4]&~opx[3]&~opx[2]&~opx[1]&~opx[0];
+	wire isAddi_x;
+	assign isAddi_x = ~opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0];
+	wire isBne_x;
+	assign isBne_x = ~opx[4]&~opx[3]&~opx[2]&opx[1]&~opx[0];
+	wire isJr_x;
+	assign isJr_x = ~opx[4]&~opx[3]&opx[2]&~opx[1]&~opx[0];
+	wire isBlt_x;
+	assign isBlt_x = ~opx[4]&~opx[3]&opx[2]&opx[1]&~opx[0];
+	
+	wire isR_x;
+	assign isR_x = isALUOp_x;
+	wire isI_x;
+	assign isI_x = isAddi_x || isSW_x || isLW_x;
 	
 	wire [31:0] alu_input_1;
 	wire [31:0] pre_alu_input_2;
@@ -204,7 +212,7 @@ module processor(
 	wire MX2a, MX2b, MX2;
 	equality5 mx2a_eq (.out(MX2a), .a(rd_m), .b(rt_x));
 	equality5 mx2b_eq (.out(MX2b), .a(rd_m), .b(rd_x));
-	assign MX2 = MX2a | (MX2b & isSW_x);
+	assign MX2 = (MX2a && (isALUOp_x)) || (MX2b && (isSW_x || isBne_x || isJr_x || isBlt_x));
 	
 	// ====== WX Bypassing
 	
@@ -214,7 +222,7 @@ module processor(
 	wire WX2a, WX2b, WX2;
 	equality5 wx2a_eq (.out(WX2a), .a(rd_w), .b(rt_x));
 	equality5 wx2b_eq (.out(WX2b), .a(rd_w), .b(rd_x));
-	assign WX2 = WX2a | (WX2b & isSW_x);
+	assign WX2 = (WX2a && (isALUOp_x)) || (WX2b && (isSW_x || isBne_x || isJr_x || isBlt_x));
 	
 	// ====== Integrating MX and WX bypassing
 	
@@ -309,6 +317,6 @@ module equality5 (out, a, b);
 	input [4:0] a, b;
 	output out;
 
-	assign out = ~(a[4]^b[4] | a[3]^b[3] | a[2]^b[2] | a[1]^b[1] | a[0]^b[0]);
+	assign out = ~(a[4]^b[4] || a[3]^b[3] || a[2]^b[2] || a[1]^b[1] || a[0]^b[0]);
 
 endmodule 
