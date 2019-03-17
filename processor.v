@@ -116,6 +116,9 @@ module processor(
 	 wire [31:0] branch_value;
 	 wire isBranch;
 	 
+	 wire [31:0] noop;
+	 assign noop = 32'b0;
+	 
 	//========================================= Fetch Stage
 	
 	wire negclock;
@@ -123,11 +126,11 @@ module processor(
 	 
 	wire [31:0] pc;
 	wire [31:0] ir_fd, pc_fd, next_pc;
-	 
-	//dff_fd dff_fd1 (.ir_in(q_imem), .pc_in(next_pc), .clk(clock), .clrn(1'b1), .prn(1'b1), 
-	//	.ena(1'b1), .ir(ir_fd), .pc(pc_fd));
 	
-	latch_fd latch_fd1 (.ir_in(q_imem), .pc_in(next_pc), .clock(clock), .reset(reset), 
+	wire [31:0] ir_in_fd;
+	assign ir_in_fd = isBranch ? noop : q_imem;
+	
+	latch_fd latch_fd1 (.ir_in(ir_in_fd), .pc_in(next_pc), .clock(clock), .reset(reset), 
 		.ir_out(ir_fd), .pc_out(pc_fd));
 		
 	wire [31:0] pc_data_in;
@@ -144,10 +147,10 @@ module processor(
 	
 	wire [31:0] ir_dx, pc_dx, a_dx, b_dx, a_out_regfile, b_out_regfile;
 	
-	//dff_dx dff_dx1 (.ir_in(ir_fd), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
-	//	.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_dx), .pc(pc_dx), .a(a_dx), .b(b_dx));
+	wire [31:0] ir_in_dx;
+	assign ir_in_dx = isBranch ? noop : ir_fd;
 		
-	latch_dx latch_dx1 (.ir_in(ir_fd), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
+	latch_dx latch_dx1 (.ir_in(ir_in_dx), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
 		.clock(clock), .reset(reset), .ir_out(ir_dx), .pc_out(pc_dx), .a_out(a_dx), .b_out(b_dx));
 		
 	wire [4:0] opd;
