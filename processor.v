@@ -113,6 +113,9 @@ module processor(
 	 wire isR_w;
 	 wire isI_w;
 	 
+	 wire [31:0] branch_value;
+	 wire isBranch;
+	 
 	//========================================= Fetch Stage
 	
 	wire negclock;
@@ -128,14 +131,14 @@ module processor(
 		.ir_out(ir_fd), .pc_out(pc_fd));
 		
 	wire [31:0] pc_data_in;
-	assign pc_data_in = next_pc;
+	assign pc_data_in = isBranch ? branch_value : next_pc;
 	//dflipflop pc_dff (.d(pc_data_in), .clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(pc));
 	latch_pc latch_pc1 (.pc_in(pc_data_in), .clock(clock), .reset(reset), .pc_out(pc));
 	assign address_imem = pc;
 	
 	alu alu_next_pc (.data_operandA(pc), .data_operandB(32'd1), .ctrl_ALUopcode(5'b00000),
 		.ctrl_shiftamt(5'b00000), .data_result(next_pc), .isNotEqual(), 
-		.isLessThan(), .overflow());
+		.isLessThan(), .overflow(), .carry_in(1'b0));
 		
 	//========================================= Decode Stage	
 	
@@ -186,9 +189,14 @@ module processor(
 	assign rs_x = ir_dx[21:17];
 	assign rt_x = ir_dx[16:12];
 	
-	wire [4:0] aluop = ir_dx[6:2];
-	wire [4:0] shamt = ir_dx[11:7];
-	wire [16:0] immediate = ir_dx[16:0];
+	wire [4:0] aluop;
+	assign alupop = ir_dx[6:2];
+	wire [4:0] shamt;
+	assign shamt = ir_dx[11:7];
+	wire [16:0] immediate;
+	assign immediate = ir_dx[16:0];
+	wire [26:0] T_x;
+	assign T_x = ir_dx[26:0];
 	
 	wire isNotEqual_x, isLessThan_x, overflow_x;
 	
@@ -204,8 +212,13 @@ module processor(
 	assign isALUOp_x = ~opx[4]&~opx[3]&~opx[2]&~opx[1]&~opx[0];
 	wire isAddi_x;
 	assign isAddi_x = ~opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0];
+	
+	wire isJ_x;
+	assign isJ_x = ~opx[4]&~opx[3]&~opx[2]&~opx[1]&opx[0];
 	wire isBne_x;
 	assign isBne_x = ~opx[4]&~opx[3]&~opx[2]&opx[1]&~opx[0];
+	wire isJal_x;
+	assign isJal_x = ~opx[4]&~opx[3]&~opx[2]&opx[1]&opx[0];
 	wire isJr_x;
 	assign isJr_x = ~opx[4]&~opx[3]&opx[2]&~opx[1]&~opx[0];
 	wire isBlt_x;
@@ -222,6 +235,40 @@ module processor(
 	assign alu_input_2 = isI_x ? signextend : pre_alu_input_2;
 	
 	wire [4:0] final_aluop = isI_x ? 5'b00000 : aluop;
+	
+	// ====== Branching in Execute stage
+	
+	wire bne_alu, blt_alu;
+	wire [31:0] pc_add_n;
+	
+	alu pc_branch_alu (.data_operandA(pc_dx), .data_operandB(signextend), 
+		.ctrl_ALUopcode(5'b00000), .ctrl_shiftamt(5'b00000), .data_result(pc_add_n), 
+		.isNotEqual(), .isLessThan(), .overflow(), .carry_in(1'b1));
+	
+	wire isBranch3, isBranch2, isBranch1;
+	assign isBranch3 = isJ_x || isJal_x || isJr_x ? 1'b1 : 1'b0;
+	assign isBranch2 = isBne_x && bne_alu ? 1'b1 : isBranch3;
+	assign isBranch1 = isBlt_x && (!blt_alu && bne_alu) ? 1'b1 : isBranch2;
+	assign isBranch = isBranch1;
+	
+	wire [1:0] pc_branch_select;
+	wire branch3, branch2, branch1;
+	assign branch3 = isJr_x ? 2'b10 : 2'b11;
+	assign branch2 = isJ_x || isJal_x ? 2'b01 : branch3;
+	assign branch1 = isBne_x || isBlt_x ? 2'b00 : branch2;
+	
+	wire [31:0] T_x_extend;
+	assign T_x_extend[26:0] = T_x;
+	assign T_x_extend[31:27] = 5'b00000;
+	
+	// 0: PC + N + 1
+	// 1: 32 bit extend of T
+	// 2: value of $rd
+	// 3: nothing
+	mux_4_1 mux_branch (
+		.out(branch_value), 
+		.in0(pc_add_n), .in1(T_x_extend), .in2(pre_alu_input_2), .in3(32'b0),
+		.select(pc_branch_select));
 	
 	// ====== MX Bypassing
 	
@@ -285,8 +332,8 @@ module processor(
 	
 	
 	alu alu1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
-		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(isNotEqual_x), 
-		.isLessThan(isLessThan_x), .overflow(overflow_x));
+		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(bne_alu), 
+		.isLessThan(blt_alu), .overflow(overflow_x), .carry_in(1'b0));
 	
 	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(pre_alu_input_2), .clock(clock), 
 		.reset(reset), .ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm));

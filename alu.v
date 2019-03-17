@@ -1,8 +1,9 @@
 module alu(data_operandA, data_operandB, ctrl_ALUopcode,
-				ctrl_shiftamt, data_result, isNotEqual, isLessThan, overflow);
+				ctrl_shiftamt, data_result, isNotEqual, isLessThan, overflow, carry_in);
 				
 	input [31:0] data_operandA, data_operandB;
 	input [4:0] ctrl_ALUopcode, ctrl_shiftamt;
+	input carry_in;
 	
 	output [31:0] data_result;
 	output isNotEqual, isLessThan, overflow;
@@ -26,7 +27,7 @@ module alu(data_operandA, data_operandB, ctrl_ALUopcode,
 	//				.cout(sum_carry_out), .cin(carry_in_ALU), .overflow(sum_overflow));
 	
 	CLA_32 sum1 (.out(sum_result), .in1(data_operandA), .in2(data_operandB),
-					.cout(sum_carry_out), .cin(1'b0), .overflow(sum_overflow));
+					.cout(sum_carry_out), .cin(carry_in), .overflow(sum_overflow));
 	
 	subtract sub1 (.out(difference_result), .in1(data_operandA), .in2(data_operandB), 
 						.overflow(difference_overflow));
