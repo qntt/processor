@@ -145,12 +145,12 @@ module processor(
 		
 	//========================================= Decode Stage	
 	
-	wire [31:0] ir_dx, pc_dx, a_dx, b_dx, a_out_regfile, b_out_regfile;
+	wire [31:0] ir_dx, pc_dx, a_dx, b_dx, a_out_regfile, b_out_regfile, a_in_dx, b_in_dx;
 	
 	wire [31:0] ir_in_dx;
 	assign ir_in_dx = isBranch ? noop : ir_fd;
 		
-	latch_dx latch_dx1 (.ir_in(ir_in_dx), .pc_in(pc_fd), .a_in(a_out_regfile), .b_in(b_out_regfile), 
+	latch_dx latch_dx1 (.ir_in(ir_in_dx), .pc_in(pc_fd), .a_in(a_in_dx), .b_in(b_in_dx), 
 		.clock(clock), .reset(reset), .ir_out(ir_dx), .pc_out(pc_dx), .a_out(a_dx), .b_out(b_dx));
 		
 	wire [4:0] opd;
@@ -162,14 +162,33 @@ module processor(
 	assign rt_d = ir_fd[16:12];
 	
 	wire isSW_d;
-	assign isSW_d =  ~opd[4] & ~opd[3] & opd[2] & opd[1] & opd[0];
+	assign isSW_d = ~opd[4]&~opd[3]&opd[2]&opd[1]&opd[0];
+	wire isLW_d;
+	assign isLW_d = ~opd[4]&opd[3]&~opd[2]&~opd[1]&~opd[0];
+	wire isALUOp_d;
+	assign isALUOp_d = ~opd[4]&~opd[3]&~opd[2]&~opd[1]&~opd[0];
+	wire isAddi_d;
+	assign isAddi_d = ~opd[4]&~opd[3]&opd[2]&~opd[1]&opd[0];
+	
+	wire isJ_d;
+	assign isJ_d = ~opd[4]&~opd[3]&~opd[2]&~opd[1]&opd[0];
+	wire isBne_d;
+	assign isBne_d = ~opd[4]&~opd[3]&~opd[2]&opd[1]&~opd[0];
+	wire isJal_d;
+	assign isJal_d = ~opd[4]&~opd[3]&~opd[2]&opd[1]&opd[0];
+	wire isJr_d;
+	assign isJr_d = ~opd[4]&~opd[3]&opd[2]&~opd[1]&~opd[0];
+	wire isBlt_d;
+	assign isBlt_d = ~opd[4]&~opd[3]&opd[2]&opd[1]&~opd[0];
+	
+	wire isR_d;
+	assign isR_d = isALUOp_d;
+	wire isI_d;
+	assign isI_d = isAddi_d || isSW_d || isLW_d;
 	
 	assign ctrl_readRegA = rs_d;
 	// if sw, then b_dx is value of rd
-	assign ctrl_readRegB = isSW_d ? rd_d : rt_d;
-	
-	wire isR_d;
-	assign isR_d = ~opd[4] & ~opd[3] & ~opd[2] & ~opd[1] & ~opd[0];
+	assign ctrl_readRegB = isSW_d || isBne_d || isBlt_d || isJr_d ? rd_d : rt_d;
 	
 	// bypassing the updated write register value if write address matches rd
 	// similar to writing to register before reading in the same clock cycle
@@ -179,6 +198,9 @@ module processor(
 		rd_d[2]^ctrl_writeReg[2] | rd_d[1]^ctrl_writeReg[1] | rd_d[0]^ctrl_writeReg[0]);
 	assign b_out_regfile = (~rdNotEqualWriteAddress & isSW_d)
 		? data_writeReg : data_readRegB;	
+		
+	assign a_in_dx = isBranch ? noop : a_out_regfile;
+	assign b_in_dx = isBranch ? noop : b_out_regfile;
 	
 	//========================================= Execute Stage
 	
@@ -336,17 +358,18 @@ module processor(
 	alu alu1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
 		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(bne_alu), 
 		.isLessThan(blt_alu), .overflow(overflow_x), .carry_in(1'b0));
+		
+	wire [31:0] o_in_x, b_in_x;
+	assign o_in_x = isBranch ? noop : alu_out;
+	assign b_in_x = isBranch ? noop : pre_alu_input_2;
 	
-	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(alu_out), .b_in(pre_alu_input_2), .clock(clock), 
+	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(o_in_x), .b_in(b_in_x), .clock(clock), 
 		.reset(reset), .ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm));
 	
 	
 	//========================================= Memory Stage
 	
 	wire [31:0] ir_mw, o_mw, d_mw;
-	
-	//dff_mw dff_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clk(clock), 
-	//	.clrn(1'b1), .prn(1'b1), .ena(1'b1), .ir(ir_mw), .o(o_mw), .d(d_mw));
 	
 	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clock(clock), .reset(reset), 
 		.ir_out(ir_mw), .o_out(o_mw), .d_out(d_mw));
