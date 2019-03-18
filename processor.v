@@ -187,16 +187,17 @@ module processor(
 	assign isI_d = isAddi_d || isSW_d || isLW_d;
 	
 	assign ctrl_readRegA = rs_d;
-	// if sw, then b_dx is value of rd
-	assign ctrl_readRegB = isSW_d || isBne_d || isBlt_d || isJr_d ? rd_d : rt_d;
+	wire need_rd_reg = isSW_d || isBne_d || isBlt_d || isJr_d;
+	
+	assign ctrl_readRegB = need_rd_reg ? rd_d : rt_d;
 	
 	// bypassing the updated write register value if write address matches rd
 	// similar to writing to register before reading in the same clock cycle
 	assign a_out_regfile = data_readRegA;
 	wire rdNotEqualWriteAddress;
-	assign rdNotEqualWriteAddress = (rd_d[4]^ctrl_writeReg[4] | rd_d[3]^ctrl_writeReg[3] |
-		rd_d[2]^ctrl_writeReg[2] | rd_d[1]^ctrl_writeReg[1] | rd_d[0]^ctrl_writeReg[0]);
-	assign b_out_regfile = (~rdNotEqualWriteAddress & isSW_d)
+	assign rdNotEqualWriteAddress = (rd_d[4]^ctrl_writeReg[4] || rd_d[3]^ctrl_writeReg[3] ||
+		rd_d[2]^ctrl_writeReg[2] || rd_d[1]^ctrl_writeReg[1] || rd_d[0]^ctrl_writeReg[0]);
+	assign b_out_regfile = (~rdNotEqualWriteAddress && need_rd_reg)
 		? data_writeReg : data_readRegB;	
 		
 	assign a_in_dx = isBranch ? noop : a_out_regfile;
