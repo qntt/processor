@@ -246,7 +246,7 @@ module processor(
 	
 	alu pc_branch_alu (.data_operandA(pc_dx), .data_operandB(signextend), 
 		.ctrl_ALUopcode(5'b00000), .ctrl_shiftamt(5'b00000), .data_result(pc_add_n), 
-		.isNotEqual(), .isLessThan(), .overflow(), .carry_in(1'b1));
+		.isNotEqual(), .isLessThan(), .overflow(), .carry_in(1'b0));
 	
 	wire isBranch3, isBranch2, isBranch1;
 	assign isBranch3 = isJ_x || isJal_x || isJr_x ? 1'b1 : 1'b0;
