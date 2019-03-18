@@ -47,7 +47,7 @@ module skeleton(clock, reset);
     regfile my_regfile(
         clock,
         ctrl_writeEnable,
-        ctrl_reset,
+        reset,
         ctrl_writeReg,
         ctrl_readRegA,
         ctrl_readRegB,
