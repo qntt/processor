@@ -25,14 +25,31 @@ module proc_tb();
 	 wire MX2 = dut.my_processor.MX2;
 	 wire WX2 = dut.my_processor.WX2;
 	 
+	 wire [11:0] address_imem = dut.my_processor.address_imem;
+
+    // Dmem
+    wire [11:0] address_dmem = dut.my_processor.address_dmem;
+    wire [31:0] data = dut.my_processor.data;
+    wire wren = dut.my_processor.wren;
+
+    // Regfile
+    wire ctrl_writeEnable = dut.my_processor.ctrl_writeEnable;
+    wire [4:0] ctrl_writeReg = dut.my_processor.ctrl_writeReg;
+	 wire [4:0] ctrl_readRegA = dut.my_processor.ctrl_readRegA;
+	 wire [4:0] ctrl_readRegB = dut.my_processor.ctrl_readRegB;
+    wire [31:0] data_writeReg = dut.my_processor.data_writeReg;
+	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
+		  
+		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
         
+		  
         //$monitor("clock: %d, pc: %d, a_dx: %d, o_xm: %b, isI_x: %d, signextend: %b, alu_input_2: %b", clock, pc, a_dx, o_xm, isI_x, signextend, alu_input_2);
 		  
-		  $monitor("pc: %d, b_out_regfile: %d, sel2_mx: %d, o_xm: %d, b_xm: %d, d_mw: %d, MX1: %d, WX1: %d, MX2: %d, WX2: %d", pc, b_out_regfile, sel2_mx, o_xm, b_xm, d_mw, MX1, WX1, MX2, WX2);
+		  //$monitor("pc: %d, b_out_regfile: %d, sel2_mx: %d, o_xm: %d, b_xm: %d, d_mw: %d, MX1: %d, WX1: %d, MX2: %d, WX2: %d", pc, b_out_regfile, sel2_mx, o_xm, b_xm, d_mw, MX1, WX1, MX2, WX2);
 		  
 		  #(20*(CYCLE_LIMIT+1.5))
 
