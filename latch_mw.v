@@ -39,7 +39,7 @@ register rStatus (
 	 .data_in(rStatus_in)
 );
 
-dflipflop rStatus (.d(isRStatus_in), .clk(clock), .clrn(~reset), .prn(1'b1), 
+dflipflop isRStatus (.d(isRStatus_in), .clk(clock), .clrn(~reset), .prn(1'b1), 
 	.ena(1'b1), .q(isRStatus_out));
 
 

@@ -388,20 +388,21 @@ module processor(
 	assign rStatus_x[0] = isAdd_x || isSub_x || isDiv_x;
 	assign rStatus_x[1] = isAddi_x || isSub_x;
 	assign rStatus_x[2] = isMul_x || isDiv_x;
+	assign rStatus_x[31:3] = 29'b0;
 	
 	
-	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(o_in_x), .b_in(b_in_x), isRStatus_in(isRStatus_x), 
+	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(o_in_x), .b_in(b_in_x), .isRStatus_in(isRStatus_x), 
 		.rStatus_in(rStatus_x), .clock(clock), .reset(reset), .ir_out(ir_xm), .o_out(o_xm), 
-		.b_out(b_xm), .isRStatus_out(isRStatus_xm) .rStatus_out(rStatus_xm));
+		.b_out(b_xm), .isRStatus_out(isRStatus_xm), .rStatus_out(rStatus_xm));
 	
 	//========================================= Memory Stage
 	
 	wire [31:0] ir_mw, o_mw, d_mw, rStatus_mw;
 	wire isRStatus_mw;
 	
-	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), isRStatus_in(isRStatus_xm), 
+	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .isRStatus_in(isRStatus_xm), 
 		.rStatus_in(rStatus_xm), .clock(clock), .reset(reset), .ir_out(ir_mw), .o_out(o_mw), 
-		.d_out(d_mw), isRStatus_out(isRStatus_mw), .rStatus_out(rStatus_mw));
+		.d_out(d_mw), .isRStatus_out(isRStatus_mw), .rStatus_out(rStatus_mw));
 		
 	wire [4:0] opm;
 	assign opm = ir_xm[31:27];
