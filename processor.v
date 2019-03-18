@@ -206,6 +206,7 @@ module processor(
 	//========================================= Execute Stage
 	
 	wire [31:0] ir_xm, o_xm, b_xm, alu_out;
+	wire data_exception;
 		
 	wire [4:0] opx;
 	assign opx = ir_dx[31:27];
@@ -363,17 +364,44 @@ module processor(
 	wire [31:0] o_in_x, b_in_x;
 	assign o_in_x = isBranch ? noop : alu_out;
 	assign b_in_x = isBranch ? noop : pre_alu_input_2;
+		
 	
-	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(o_in_x), .b_in(b_in_x), .clock(clock), 
-		.reset(reset), .ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm));
+	// ====== R Status
 	
+	wire isAdd_x;
+	assign isAdd_x = ~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&~aluop[0];
+	wire isSub_x;
+	assign isSub_x = ~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&aluop[0];
+	wire isMul_x;
+	assign isMul_x = ~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&~aluop[0];
+	wire isDiv_x;
+	assign isDiv_x = ~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&aluop[0];
+	
+	wire isRStatus_x, isRStatus_xm;
+	wire [31:0] rStatus_x, rStatus_xm;
+	assign isRStatus_x = (isALUOp_x && (
+		(isAdd_x && overflow_x) ||
+		(isSub_x && overflow_x) ||
+		(isMul_x && data_exception) ||
+		(isDiv_x && data_exception))
+		) || (isAddi_x && overflow_x);
+	assign rStatus_x[0] = isAdd_x || isSub_x || isDiv_x;
+	assign rStatus_x[1] = isAddi_x || isSub_x;
+	assign rStatus_x[2] = isMul_x || isDiv_x;
+	
+	
+	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(o_in_x), .b_in(b_in_x), isRStatus_in(isRStatus_x), 
+		.rStatus_in(rStatus_x), .clock(clock), .reset(reset), .ir_out(ir_xm), .o_out(o_xm), 
+		.b_out(b_xm), .isRStatus_out(isRStatus_xm) .rStatus_out(rStatus_xm));
 	
 	//========================================= Memory Stage
 	
-	wire [31:0] ir_mw, o_mw, d_mw;
+	wire [31:0] ir_mw, o_mw, d_mw, rStatus_mw;
+	wire isRStatus_mw;
 	
-	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .clock(clock), .reset(reset), 
-		.ir_out(ir_mw), .o_out(o_mw), .d_out(d_mw));
+	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), isRStatus_in(isRStatus_xm), 
+		.rStatus_in(rStatus_xm), .clock(clock), .reset(reset), .ir_out(ir_mw), .o_out(o_mw), 
+		.d_out(d_mw), isRStatus_out(isRStatus_mw), .rStatus_out(rStatus_mw));
 		
 	wire [4:0] opm;
 	assign opm = ir_xm[31:27];
@@ -426,10 +454,12 @@ module processor(
 	assign isR_w = isALUOp_w;
 	assign isI_w = isAddi_w || isSW_w || isLW_w;
 	
-	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w;
+	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw;
 	
-   assign ctrl_writeReg = rd_w;
-   assign data_writeReg = isLW_w ? d_mw : o_mw;
+   assign ctrl_writeReg = isRStatus_mw ? 5'd30 : rd_w;
+	wire [31:0] data_writeReg_d_or_o;
+   assign data_writeReg_d_or_o = isLW_w ? d_mw : o_mw;
+	assign data_writeReg = isRStatus_mw ? rStatus_mw : data_writeReg_d_or_o;
 	
 	
 	 

@@ -54,10 +54,12 @@ module proc_tb();
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
 		  
-		  $monitor("pc: %d, alu_1: %d, alu_2: %d, isBranch: %d, branch_value: %d, pc_branch_sel: %d, ctrl_writeEnable: %d, ctrl_writeReg: %d, data_writeReg: %d",
-		  pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, ctrl_writeEnable, ctrl_writeReg, data_writeReg);
+		  // branching monitor
+		  //$monitor("pc: %d, alu_1: %d, alu_2: %d, isBranch: %d, branch_value: %d, pc_branch_sel: %d, ctrl_writeEnable: %d, ctrl_writeReg: %d, data_writeReg: %d",
+		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, ctrl_writeEnable, ctrl_writeReg, data_writeReg);
 		  
-		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
+		  // processor output monitor
+		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         
