@@ -193,7 +193,7 @@ module processor(
 	assign rt_x = ir_dx[16:12];
 	
 	wire [4:0] aluop;
-	assign alupop = ir_dx[6:2];
+	assign aluop = ir_dx[6:2];
 	wire [4:0] shamt;
 	assign shamt = ir_dx[11:7];
 	wire [16:0] immediate;
@@ -255,10 +255,9 @@ module processor(
 	assign isBranch = isBranch1;
 	
 	wire [1:0] pc_branch_select;
-	wire branch3, branch2, branch1;
-	assign branch3 = isJr_x ? 2'b10 : 2'b11;
-	assign branch2 = isJ_x || isJal_x ? 2'b01 : branch3;
-	assign branch1 = isBne_x || isBlt_x ? 2'b00 : branch2;
+	// assuming if pc_branch_select == 2'b00, then this is bne or blt, so don't need to assign.
+	assign pc_branch_select[0] = isJ_x || isJal_x;
+	assign pc_branch_select[1] = isJr_x;
 	
 	wire [31:0] T_x_extend;
 	assign T_x_extend[26:0] = T_x;
@@ -272,6 +271,7 @@ module processor(
 		.out(branch_value), 
 		.in0(pc_add_n), .in1(T_x_extend), .in2(pre_alu_input_2), .in3(32'b0),
 		.select(pc_branch_select));
+		
 	
 	// ====== MX Bypassing
 	
@@ -313,25 +313,24 @@ module processor(
 	// ====== Integrating MX and WX bypassing
 	
 	// selector for mux that determines alu_input_1 and alu_input_2
-	wire [1:0] sel1, sel1_wx, sel1_mx;
-	assign sel1 = 2'b10;
-	assign sel1_wx = WX1 ? 2'b01 : sel1;
-	assign sel1_mx = MX1 ? 2'b00 : sel1_wx;
+	wire [1:0] sel1;
+	assign sel1[0] = WX1 || MX1;
+	assign sel1[1] = MX1;
 	
-	wire [1:0] sel2, sel2_wx, sel2_mx;
-	assign sel2 = 2'b10;
-	assign sel2_wx = WX2 ? 2'b01 : sel2;
-	assign sel2_mx = MX2 ? 2'b00 : sel2_wx;
+	wire [1:0] sel2;
+	assign sel2[0] = WX2 || MX2;
+	assign sel2[1] = MX2;
 	
+	// 00: a_dx/b_dx, 01: WX, 10: MX, 11: MX
 	mux_4_1 mux_alu_input_1 (
 		.out(alu_input_1), 
-		.in0(o_xm), .in1(data_writeReg), .in2(a_dx), .in3(a_dx),
-		.select(sel1_mx));
+		.in0(a_dx), .in1(data_writeReg), .in2(o_xm), .in3(o_xm),
+		.select(sel1));
 		
 	mux_4_1 mux_alu_input_2 (
 		.out(pre_alu_input_2), 
-		.in0(o_xm), .in1(data_writeReg), .in2(b_dx), .in3(b_dx),
-		.select(sel2_mx));
+		.in0(b_dx), .in1(data_writeReg), .in2(o_xm), .in3(o_xm),
+		.select(sel2));
 	
 	
 	alu alu1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
