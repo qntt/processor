@@ -116,6 +116,8 @@ module processor(
 	 wire [31:0] branch_value;
 	 wire isBranch;
 	 
+	 wire isStall_pc, isStall_fd, isStall_dx;
+	 
 	 wire [31:0] noop;
 	 assign noop = 32'b0;
 	 
@@ -131,12 +133,13 @@ module processor(
 	assign ir_in_fd = isBranch ? noop : q_imem;
 	
 	latch_fd latch_fd1 (.ir_in(ir_in_fd), .pc_in(next_pc), .clock(clock), .reset(reset), 
-		.ir_out(ir_fd), .pc_out(pc_fd));
+		.enable(~isStall_fd), .ir_out(ir_fd), .pc_out(pc_fd));
 		
 	wire [31:0] pc_data_in;
 	assign pc_data_in = isBranch ? branch_value : next_pc;
 	//dflipflop pc_dff (.d(pc_data_in), .clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(pc));
-	latch_pc latch_pc1 (.pc_in(pc_data_in), .clock(clock), .reset(reset), .pc_out(pc));
+	latch_pc latch_pc1 (.pc_in(pc_data_in), .clock(clock), .reset(reset), .enable(~isStall_pc), 
+		.pc_out(pc));
 	assign address_imem = pc;
 	
 	alu alu_next_pc (.data_operandA(pc), .data_operandB(32'd1), .ctrl_ALUopcode(5'b00000),
@@ -151,7 +154,8 @@ module processor(
 	assign ir_in_dx = isBranch ? noop : ir_fd;
 		
 	latch_dx latch_dx1 (.ir_in(ir_in_dx), .pc_in(pc_fd), .a_in(a_in_dx), .b_in(b_in_dx), 
-		.clock(clock), .reset(reset), .ir_out(ir_dx), .pc_out(pc_dx), .a_out(a_dx), .b_out(b_dx));
+		.clock(clock), .reset(reset), .enable(~isStall_dx), .ir_out(ir_dx), .pc_out(pc_dx), 
+		.a_out(a_dx), .b_out(b_dx));
 		
 	wire [4:0] opd;
 	assign opd = ir_fd[31:27];
@@ -206,7 +210,6 @@ module processor(
 	//========================================= Execute Stage
 	
 	wire [31:0] ir_xm, o_xm, b_xm, alu_out;
-	wire data_exception;
 		
 	wire [4:0] opx;
 	assign opx = ir_dx[31:27];
@@ -361,12 +364,8 @@ module processor(
 		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(bne_alu), 
 		.isLessThan(blt_alu), .overflow(overflow_x), .carry_in(1'b0));
 		
-	wire [31:0] o_in_x, b_in_x;
-	assign o_in_x = isBranch ? noop : alu_out;
-	assign b_in_x = isBranch ? noop : pre_alu_input_2;
-		
 	
-	// ====== R Status
+	// ====== Multdiv
 	
 	wire isAdd_x;
 	assign isAdd_x = ~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&~aluop[0];
@@ -376,6 +375,31 @@ module processor(
 	assign isMul_x = ~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&~aluop[0];
 	wire isDiv_x;
 	assign isDiv_x = ~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&aluop[0];
+	
+	wire [31:0] multdiv_result;
+	wire data_exception, data_resultRDY;
+	
+	// Check if multdiv is still ongoing
+	wire startMultDiv, ready_reg;
+	dflipflop dff_startMultDiv (.d(isMul_x || isDiv_x), 
+		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(ready_reg));
+	assign startMultDiv = (isMul_x || isDiv_x) && ~ready_reg;
+	
+	wire isStillMultDiv, pre_isStillMultDiv;
+	assign isStillMultDiv = startMultDiv || pre_isStillMultDiv;
+	dflipflop dff_preMultDiv (.d(startMultDiv || pre_isStillMultDiv), 
+		.clk(clock), .clrn(~data_resultRDY), .prn(1'b1), .ena(1'b1), .q(pre_isStillMultDiv));
+	
+	assign isStall_pc = isStillMultDiv;
+	assign isStall_fd = isStillMultDiv;
+	assign isStall_dx = isStillMultDiv;
+	
+	multdiv md1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), 
+		.ctrl_MULT(isMul_x && startMultDiv), .ctrl_DIV(isDiv_x && startMultDiv), .clock(clock), 
+		.data_result(multdiv_result), .data_exception(data_exception), .data_resultRDY(data_resultRDY));
+		
+	
+	// ====== R Status
 	
 	wire isRStatus_x, isRStatus_xm;
 	wire [31:0] rStatus_x, rStatus_xm;
@@ -391,7 +415,30 @@ module processor(
 	assign rStatus_x[31:3] = 29'b0;
 	
 	
-	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(o_in_x), .b_in(b_in_x), .isRStatus_in(isRStatus_x), 
+	wire [31:0] o_in_x, b_in_x;
+	
+	// 00: normal alu output, 01: noop(branches or still in multdiv computation)
+	// 10: finished multdiv, dataresultRDY is 1, 11: unused
+	wire [1:0] o_in_x_sel;
+	assign o_in_x_sel[0] = isBranch || isStillMultDiv;
+	assign o_in_x_sel[1] = data_resultRDY;
+	
+	mux_4_1 o_in_x_mux (
+		.out(o_in_x), 
+		.in0(alu_out), .in1(noop), .in2(multdiv_result), .in3(multdiv_result),
+		.select(o_in_x_sel));
+		
+	mux_4_1 b_in_x_mux (
+		.out(b_in_x), 
+		.in0(pre_alu_input_2), .in1(noop), .in2(pre_alu_input_2), .in3(pre_alu_input_2),
+		.select(o_in_x_sel));
+		
+		
+	wire [31:0] ir_in_xm;
+	assign ir_in_xm = isBranch || (isStillMultDiv && ~data_resultRDY) ? noop : ir_dx;
+	
+	
+	latch_xm latch_xm1 (.ir_in(ir_in_xm), .o_in(o_in_x), .b_in(b_in_x), .isRStatus_in(isRStatus_x), 
 		.rStatus_in(rStatus_x), .clock(clock), .reset(reset), .ir_out(ir_xm), .o_out(o_xm), 
 		.b_out(b_xm), .isRStatus_out(isRStatus_xm), .rStatus_out(rStatus_xm));
 	

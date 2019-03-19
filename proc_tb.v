@@ -49,17 +49,36 @@ module proc_tb();
 	 wire [31:0] alu_input_1 = dut.my_processor.alu_input_1;
 	 wire [31:0] alu_input_2 = dut.my_processor.alu_input_2;
 	 
+	 wire isStillMultDiv = dut.my_processor.isStillMultDiv;
+	 //wire data_resultRDY = dut.my_processor.data_resultRDY;
+	 wire [31:0] o_in_x = dut.my_processor.o_in_x;
+	 wire isMul_x = dut.my_processor.isMul_x;
+	 wire startMultDiv = dut.my_processor.startMultDiv;
+	 wire [31:0] multdiv_result = dut.my_processor.multdiv_result;
+	 
+	 wire [31:0] data_a = dut.my_processor.md1.data_a;
+	 wire [31:0] data_b = dut.my_processor.md1.data_b;
+	 wire [31:0] result_mult = dut.my_processor.md1.data_result_mult;
+	 wire ctrl_MULT = dut.my_processor.md1.ctrl_MULT;
+	 wire data_resultRDY = dut.my_processor.md1.data_resultRDY;
+	 
+	 wire [1:0] o_in_x_sel = dut.my_processor.o_in_x_sel;
+	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
+		  
+		  // multdiv
+		  //$monitor("clock: %d, pc: %d, data_a: %d, data_b: %d, result_mult: %d, ctrl_MULT: %d, data_resultRDY: %d, multdiv_result: %d, o_in_x_sel: %d, isStillMultDiv: %d",
+		  //clock, pc, data_a, data_b, result_mult, ctrl_MULT, data_resultRDY, multdiv_result, o_in_x_sel, isStillMultDiv);
 
 		  // branching monitor
 		  //$monitor("pc: %d, alu_1: %d, alu_2: %d, isBranch: %d, branch_value: %d, pc_branch_sel: %d, ctrl_writeEnable: %d, ctrl_writeReg: %d, data_writeReg: %d",
 		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, ctrl_writeEnable, ctrl_writeReg, data_writeReg);
 		  
 		  // processor output monitor
-		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
+		  $monitor("clock: %d, pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", clock, pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         
