@@ -64,6 +64,10 @@ module proc_tb();
 	 
 	 wire [1:0] o_in_x_sel = dut.my_processor.o_in_x_sel;
 	 
+	 wire isBex_x = dut.my_processor.isBex_x;
+	 wire bne_alu = dut.my_processor.bne_alu;
+	 wire [1:0] sel_alu_input1 = dut.my_processor.sel_alu_input1;
+	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
@@ -78,12 +82,12 @@ module proc_tb();
 		  //clock, pc, data_a, data_b, result_mult, ctrl_MULT, data_resultRDY, multdiv_result, o_in_x_sel, isStillMultDiv);
 
 		  // branching monitor
-		  //$monitor("pc: %d, alu_1: %d, alu_2: %d, isBranch: %d, branch_value: %d, pc_branch_sel: %d, ctrl_writeEnable: %d, ctrl_writeReg: %d, data_writeReg: %d",
-		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, ctrl_writeEnable, ctrl_writeReg, data_writeReg);
+		  //$monitor("pc: %d, alu_1: %d, alu_2: %d, isBranch: %d, branch_value: %d, pc_branch_sel: %d, isBex_x: %d, bne_alu: %d, ctrl_writeEnable: %d, ctrl_writeReg: %d, data_writeReg: %d, sel_alu_input1: %d",
+		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, isBex_x, bne_alu, ctrl_writeEnable, ctrl_writeReg, data_writeReg, sel_alu_input1);
 		  
 		  // processor output monitor
-		  $monitor("clock: %d, pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
-		  clock, pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
+		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
+		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         

@@ -121,6 +121,11 @@ module processor(
 	 wire [31:0] noop;
 	 assign noop = 32'b0;
 	 
+	 wire isSetx_m;
+	 wire isSetx_w;
+	 wire [31:0] T_m_extend;
+	 wire [31:0] T_w_extend;
+	 
 	//========================================= Fetch Stage
 	
 	wire negclock;
@@ -286,7 +291,7 @@ module processor(
 		.isNotEqual(), .isLessThan(), .overflow(), .carry_in(1'b0));
 	
 	wire isBranch4, isBranch3, isBranch2, isBranch1;
-	assign isBranch4 = isBex_x && (bne_alu);
+	assign isBranch4 = isBex_x && bne_alu;
 	assign isBranch3 = isJ_x || isJal_x || isJr_x;
 	assign isBranch2 = isBne_x && bne_alu;
 	assign isBranch1 = isBlt_x && (!blt_alu && bne_alu);
@@ -312,6 +317,29 @@ module processor(
 		.in0(pc_add_n), .in1(T_x_extend), .in2(pre_alu_input_2), .in3(32'b0),
 		.select(pc_branch_select));
 		
+		
+	// ====== MX/WX Bypassing for RStatus (setx)
+		
+	wire is_rs_30, is_rt_30, is_rd_30;
+	equality5 reg30_eq1 (.out(is_rs_30), .a(5'd30), .b(rs_x));
+	equality5 reg30_eq2 (.out(is_rt_30), .a(5'd30), .b(rt_x));
+	equality5 reg30_eq3 (.out(is_rd_30), .a(5'd30), .b(rd_x));
+	
+	wire MX_30_rs, MX_30_rt, MX_30_rd;
+	wire WX_30_rs, WX_30_rt, WX_30_rd;
+	assign MX_30_rs = isSetx_m && 
+		((is_rs_30 && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x)) || isBex_x);
+	assign MX_30_rt = isSetx_m &&
+		(is_rt_30 && (isALUOp_x || isAddi_x));
+	assign MX_30_rd = isSetx_m &&
+		(is_rd_30 && (isSW_x || isBne_x || isBlt_x));
+	assign WX_30_rs = isSetx_w && 
+		((is_rs_30 && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x)) || isBex_x);
+	assign WX_30_rt = isSetx_w &&
+		(is_rt_30 && (isALUOp_x || isAddi_x));
+	assign WX_30_rd = isSetx_w &&
+		(is_rd_30 && (isSW_x || isBne_x || isBlt_x));
+		
 	
 	// ====== MX Bypassing
 	
@@ -324,9 +352,11 @@ module processor(
 	
 	*/
 	
+	
 	wire reg_match_rs_mx, MX1;
 	equality5 mx1_eq (.out(reg_match_rs_mx), .a(rd_m), .b(rs_x));
-	assign MX1 = (reg_match_rs_mx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x))
+	assign MX1 = (reg_match_rs_mx && (isALUOp_x || isAddi_x || isSW_x || isLW_x 
+		|| isBne_x || isBlt_x))
 		&& (isALUOp_m || isAddi_m);
 	
 	wire reg_match_rt_mx, reg_match_rd_mx, MX2;
@@ -340,7 +370,8 @@ module processor(
 	
 	wire reg_match_rs_wx, WX1;
 	equality5 wx1_eq (.out(reg_match_rs_wx), .a(rd_w), .b(rs_x));
-	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x))
+	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x 
+		|| isBne_x || isBlt_x || isBex_x))
 		&& (isALUOp_w || isAddi_w);
 	
 	wire reg_match_rt_wx, reg_match_rd_wx, WX2;
@@ -361,16 +392,36 @@ module processor(
 	assign sel2[0] = WX2 || MX2;
 	assign sel2[1] = MX2;
 	
+	wire [31:0] alu_1, alu_2;
+	
 	// 00: a_dx/b_dx, 01: WX, 10: MX, 11: MX
-	mux_4_1 mux_alu_input_1 (
-		.out(alu_input_1), 
+	mux_4_1 mux_alu_1 (
+		.out(alu_1), 
 		.in0(a_dx), .in1(data_writeReg), .in2(o_xm), .in3(o_xm),
 		.select(sel1));
 		
-	mux_4_1 mux_alu_input_2 (
-		.out(pre_alu_input_2), 
+	mux_4_1 mux_alu_2 (
+		.out(alu_2), 
 		.in0(b_dx), .in1(data_writeReg), .in2(o_xm), .in3(o_xm),
 		.select(sel2));
+		
+	wire [1:0] sel_alu_input1;
+	assign sel_alu_input1[0] = MX_30_rs;
+	assign sel_alu_input1[1] = WX_30_rs && (~MX_30_rs && ~MX1);
+	
+	wire [1:0] sel_alu_input2;
+	assign sel_alu_input2[0] = MX_30_rt || MX_30_rd;
+	assign sel_alu_input2[1] = (WX_30_rt || WX_30_rd) && (~(MX_30_rt || MX_30_rd) && ~MX2);
+
+	mux_4_1 mux_alu_input_1 (
+		.out(alu_input_1), 
+		.in0(alu_1), .in1(T_m_extend), .in2(T_w_extend), .in3(noop),
+		.select(sel_alu_input1));
+	
+	mux_4_1 mux_alu_input_2 (
+		.out(pre_alu_input_2), 
+		.in0(alu_2), .in1(T_m_extend), .in2(T_w_extend), .in3(noop),
+		.select(sel_alu_input2));
 	
 	
 	alu alu1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
@@ -480,8 +531,17 @@ module processor(
 	assign isJr_m = ~opm[4]&~opm[3]&opm[2]&~opm[1]&~opm[0];
 	assign isBlt_m = ~opm[4]&~opm[3]&opm[2]&opm[1]&~opm[0];
 	
+	wire isBex_m;
+	assign isBex_m = opm[4]&~opm[3]&opm[2]&opm[1]&~opm[0];
+	assign isSetx_m = opm[4]&~opm[3]&opm[2]&~opm[1]&opm[0];
+	
 	assign isR_m = isALUOp_m;
 	assign isI_m = isAddi_m || isSW_m || isLW_m;
+	
+	wire [26:0] T_m;
+	assign T_m = ir_xm[26:0];
+	assign T_m_extend[26:0] = T_m;
+	assign T_m_extend[31:27] = 5'b00000;
 	
 	// ====== WM Bypassing
 	
@@ -514,7 +574,6 @@ module processor(
 	
 	wire isBex_w;
 	assign isBex_w = opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
-	wire isSetx_w;
 	assign isSetx_w = opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0];
 	
 	assign isR_w = isALUOp_w;
@@ -522,7 +581,6 @@ module processor(
 	
 	wire [26:0] T_w;
 	assign T_w = ir_mw[26:0];
-	wire [31:0] T_w_extend;
 	assign T_w_extend[26:0] = T_w;
 	assign T_w_extend[31:27] = 5'b00000;
 	
