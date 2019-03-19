@@ -195,7 +195,7 @@ module processor(
 	wire isI_d;
 	assign isI_d = isAddi_d || isSW_d || isLW_d;
 	
-	assign ctrl_readRegA = rs_d;
+	assign ctrl_readRegA = isBex_d ? 5'd30 : rs_d;
 	wire need_rd_reg = isSW_d || isBne_d || isBlt_d || isJr_d;
 	
 	assign ctrl_readRegB = need_rd_reg ? rd_d : rt_d;
@@ -210,7 +210,7 @@ module processor(
 		? data_writeReg : data_readRegB;	
 		
 	assign a_in_dx = isBranch ? noop : a_out_regfile;
-	assign b_in_dx = isBranch ? noop : b_out_regfile;
+	assign b_in_dx = isBranch || isBex_d ? noop : b_out_regfile;
 	
 	//========================================= Execute Stage
 	
@@ -259,6 +259,11 @@ module processor(
 	wire isBlt_x;
 	assign isBlt_x = ~opx[4]&~opx[3]&opx[2]&opx[1]&~opx[0];
 	
+	wire isBex_x;
+	assign isBex_x = opx[4]&~opx[3]&opx[2]&opx[1]&~opx[0];
+	wire isSetx_x;
+	assign isSetx_x = opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0];
+	
 	wire isR_x;
 	assign isR_x = isALUOp_x;
 	wire isI_x;
@@ -280,15 +285,18 @@ module processor(
 		.ctrl_ALUopcode(5'b00000), .ctrl_shiftamt(5'b00000), .data_result(pc_add_n), 
 		.isNotEqual(), .isLessThan(), .overflow(), .carry_in(1'b0));
 	
-	wire isBranch3, isBranch2, isBranch1;
-	assign isBranch3 = isJ_x || isJal_x || isJr_x ? 1'b1 : 1'b0;
-	assign isBranch2 = isBne_x && bne_alu ? 1'b1 : isBranch3;
-	assign isBranch1 = isBlt_x && (!blt_alu && bne_alu) ? 1'b1 : isBranch2;
-	assign isBranch = isBranch1;
+	wire isBranch4, isBranch3, isBranch2, isBranch1;
+	assign isBranch4 = isBex_x && (bne_alu);
+	assign isBranch3 = isJ_x || isJal_x || isJr_x;
+	assign isBranch2 = isBne_x && bne_alu;
+	assign isBranch1 = isBlt_x && (!blt_alu && bne_alu);
+	
+	assign isBranch = isBranch1 || isBranch2 || isBranch3 || isBranch4;
 	
 	wire [1:0] pc_branch_select;
 	// assuming if pc_branch_select == 2'b00, then this is bne or blt, so don't need to assign.
-	assign pc_branch_select[0] = isJ_x || isJal_x;
+	// 00: bne || blt, 01: J || Jal || Bex, 10: Jr, 11: N/A
+	assign pc_branch_select[0] = isJ_x || isJal_x || isBex_x;
 	assign pc_branch_select[1] = isJr_x;
 	
 	wire [31:0] T_x_extend;
