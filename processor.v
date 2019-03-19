@@ -185,6 +185,11 @@ module processor(
 	wire isBlt_d;
 	assign isBlt_d = ~opd[4]&~opd[3]&opd[2]&opd[1]&~opd[0];
 	
+	wire isBex_d;
+	assign isBex_d = opd[4]&~opd[3]&opd[2]&opd[1]&~opd[0];
+	wire isSetx_d;
+	assign isSetx_d = opd[4]&~opd[3]&opd[2]&~opd[1]&opd[0];
+	
 	wire isR_d;
 	assign isR_d = isALUOp_d;
 	wire isI_d;
@@ -499,17 +504,33 @@ module processor(
 	assign isJr_w = ~opw[4]&~opw[3]&opw[2]&~opw[1]&~opw[0];
 	assign isBlt_w = ~opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
 	
+	wire isBex_w;
+	assign isBex_w = opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
+	wire isSetx_w;
+	assign isSetx_w = opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0];
+	
 	assign isR_w = isALUOp_w;
 	assign isI_w = isAddi_w || isSW_w || isLW_w;
 	
-	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw;
+	wire [26:0] T_w;
+	assign T_w = ir_mw[26:0];
+	wire [31:0] T_w_extend;
+	assign T_w_extend[26:0] = T_w;
+	assign T_w_extend[31:27] = 5'b00000;
 	
-   assign ctrl_writeReg = isRStatus_mw ? 5'd30 : rd_w;
-	wire [31:0] data_writeReg_d_or_o;
-   assign data_writeReg_d_or_o = isLW_w ? d_mw : o_mw;
-	assign data_writeReg = isRStatus_mw ? rStatus_mw : data_writeReg_d_or_o;
+	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw || isSetx_w;
 	
+	// data write sel
+	// 00: o_mw, 01: rStatus_mw, 10: T extend, 11: d
+	wire [1:0] data_write_sel;
+	assign data_write_sel[0] = isRStatus_mw || isLW_w;
+	assign data_write_sel[1] = isSetx_w || isLW_w;
 	
+   assign ctrl_writeReg = (isRStatus_mw || isSetx_w) ? 5'd30 : rd_w;
+	mux_4_1 mux_data_write (
+		.out(data_writeReg), 
+		.in0(o_mw), .in1(rStatus_mw), .in2(T_w_extend), .in3(d_mw),
+		.select(data_write_sel));
 	 
 
 endmodule 
