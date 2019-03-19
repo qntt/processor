@@ -390,9 +390,9 @@ module processor(
 	dflipflop dff_preMultDiv (.d(startMultDiv || pre_isStillMultDiv), 
 		.clk(clock), .clrn(~data_resultRDY), .prn(1'b1), .ena(1'b1), .q(pre_isStillMultDiv));
 	
-	assign isStall_pc = isStillMultDiv;
-	assign isStall_fd = isStillMultDiv;
-	assign isStall_dx = isStillMultDiv;
+	assign isStall_pc = (isStillMultDiv && ~data_resultRDY);
+	assign isStall_fd = (isStillMultDiv && ~data_resultRDY);
+	assign isStall_dx = (isStillMultDiv && ~data_resultRDY);
 	
 	multdiv md1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), 
 		.ctrl_MULT(isMul_x && startMultDiv), .ctrl_DIV(isDiv_x && startMultDiv), .clock(clock), 
