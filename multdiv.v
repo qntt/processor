@@ -10,11 +10,29 @@ module multdiv(data_operandA, data_operandB,
 	wire [31:0] data_result_mult, data_result_div;
 	wire data_exception_mult, data_exception_div, data_resultRDY_mult, data_resultRDY_div;
 	
-	mult m1 (.out(data_result_mult), .multiplicand(data_operandA), .multiplier(data_operandB), 
+	wire [31:0] data_a, data_b; 
+	
+	register reg_a (
+    .data_out(data_a),
+	 .clock(~clock),
+    .ctrl_writeEnable(ctrl_MULT || ctrl_DIV),
+    .ctrl_reset(1'b0),
+	 .data_in(data_operandA)
+	);
+	
+	register reg_b (
+    .data_out(data_b),
+	 .clock(~clock),
+    .ctrl_writeEnable(ctrl_MULT || ctrl_DIV),
+    .ctrl_reset(1'b0),
+	 .data_in(data_operandB)
+	);
+	
+	mult m1 (.out(data_result_mult), .multiplicand(data_a), .multiplier(data_b), 
 				.clock(clock), .ctrl_MULT(ctrl_MULT), .data_exception(data_exception_mult), 
 				.data_resultRDY(data_resultRDY_mult));
 	
-	div d1 (.out(data_result_div), .dividend(data_operandA), .divisor(data_operandB), .clock(clock), 
+	div d1 (.out(data_result_div), .dividend(data_a), .divisor(data_b), .clock(clock), 
 				.ctrl_DIV(ctrl_DIV), .data_exception(data_exception_div), 
 				.data_resultRDY(data_resultRDY_div));
 				

@@ -116,8 +116,18 @@ module processor(
 	 wire [31:0] branch_value;
 	 wire isBranch;
 	 
+	 wire isStall_pc, isStall_fd, isStall_dx;
+	 
 	 wire [31:0] noop;
 	 assign noop = 32'b0;
+	 
+	 wire isSetx_m;
+	 wire isSetx_w;
+	 wire [31:0] T_m_extend;
+	 wire [31:0] T_w_extend;
+	 
+	 wire isRStatus_xm, isRStatus_mw;
+	 wire [31:0] rStatus_xm, rStatus_mw;
 	 
 	//========================================= Fetch Stage
 	
@@ -131,12 +141,13 @@ module processor(
 	assign ir_in_fd = isBranch ? noop : q_imem;
 	
 	latch_fd latch_fd1 (.ir_in(ir_in_fd), .pc_in(next_pc), .clock(clock), .reset(reset), 
-		.ir_out(ir_fd), .pc_out(pc_fd));
+		.enable(~isStall_fd), .ir_out(ir_fd), .pc_out(pc_fd));
 		
 	wire [31:0] pc_data_in;
 	assign pc_data_in = isBranch ? branch_value : next_pc;
 	//dflipflop pc_dff (.d(pc_data_in), .clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(pc));
-	latch_pc latch_pc1 (.pc_in(pc_data_in), .clock(clock), .reset(reset), .pc_out(pc));
+	latch_pc latch_pc1 (.pc_in(pc_data_in), .clock(clock), .reset(reset), .enable(~isStall_pc), 
+		.pc_out(pc));
 	assign address_imem = pc;
 	
 	alu alu_next_pc (.data_operandA(pc), .data_operandB(32'd1), .ctrl_ALUopcode(5'b00000),
@@ -151,7 +162,8 @@ module processor(
 	assign ir_in_dx = isBranch ? noop : ir_fd;
 		
 	latch_dx latch_dx1 (.ir_in(ir_in_dx), .pc_in(pc_fd), .a_in(a_in_dx), .b_in(b_in_dx), 
-		.clock(clock), .reset(reset), .ir_out(ir_dx), .pc_out(pc_dx), .a_out(a_dx), .b_out(b_dx));
+		.clock(clock), .reset(reset), .enable(~isStall_dx), .ir_out(ir_dx), .pc_out(pc_dx), 
+		.a_out(a_dx), .b_out(b_dx));
 		
 	wire [4:0] opd;
 	assign opd = ir_fd[31:27];
@@ -181,12 +193,17 @@ module processor(
 	wire isBlt_d;
 	assign isBlt_d = ~opd[4]&~opd[3]&opd[2]&opd[1]&~opd[0];
 	
+	wire isBex_d;
+	assign isBex_d = opd[4]&~opd[3]&opd[2]&opd[1]&~opd[0];
+	wire isSetx_d;
+	assign isSetx_d = opd[4]&~opd[3]&opd[2]&~opd[1]&opd[0];
+	
 	wire isR_d;
 	assign isR_d = isALUOp_d;
 	wire isI_d;
 	assign isI_d = isAddi_d || isSW_d || isLW_d;
 	
-	assign ctrl_readRegA = rs_d;
+	assign ctrl_readRegA = isBex_d ? 5'd30 : rs_d;
 	wire need_rd_reg = isSW_d || isBne_d || isBlt_d || isJr_d;
 	
 	assign ctrl_readRegB = need_rd_reg ? rd_d : rt_d;
@@ -201,12 +218,11 @@ module processor(
 		? data_writeReg : data_readRegB;	
 		
 	assign a_in_dx = isBranch ? noop : a_out_regfile;
-	assign b_in_dx = isBranch ? noop : b_out_regfile;
+	assign b_in_dx = isBranch || isBex_d ? noop : b_out_regfile;
 	
 	//========================================= Execute Stage
 	
 	wire [31:0] ir_xm, o_xm, b_xm, alu_out;
-	wire data_exception;
 		
 	wire [4:0] opx;
 	assign opx = ir_dx[31:27];
@@ -251,6 +267,11 @@ module processor(
 	wire isBlt_x;
 	assign isBlt_x = ~opx[4]&~opx[3]&opx[2]&opx[1]&~opx[0];
 	
+	wire isBex_x;
+	assign isBex_x = opx[4]&~opx[3]&opx[2]&opx[1]&~opx[0];
+	wire isSetx_x;
+	assign isSetx_x = opx[4]&~opx[3]&opx[2]&~opx[1]&opx[0];
+	
 	wire isR_x;
 	assign isR_x = isALUOp_x;
 	wire isI_x;
@@ -272,15 +293,18 @@ module processor(
 		.ctrl_ALUopcode(5'b00000), .ctrl_shiftamt(5'b00000), .data_result(pc_add_n), 
 		.isNotEqual(), .isLessThan(), .overflow(), .carry_in(1'b0));
 	
-	wire isBranch3, isBranch2, isBranch1;
-	assign isBranch3 = isJ_x || isJal_x || isJr_x ? 1'b1 : 1'b0;
-	assign isBranch2 = isBne_x && bne_alu ? 1'b1 : isBranch3;
-	assign isBranch1 = isBlt_x && (!blt_alu && bne_alu) ? 1'b1 : isBranch2;
-	assign isBranch = isBranch1;
+	wire isBranch4, isBranch3, isBranch2, isBranch1;
+	assign isBranch4 = isBex_x && bne_alu;
+	assign isBranch3 = isJ_x || isJal_x || isJr_x;
+	assign isBranch2 = isBne_x && bne_alu;
+	assign isBranch1 = isBlt_x && (!blt_alu && bne_alu);
+	
+	assign isBranch = isBranch1 || isBranch2 || isBranch3 || isBranch4;
 	
 	wire [1:0] pc_branch_select;
 	// assuming if pc_branch_select == 2'b00, then this is bne or blt, so don't need to assign.
-	assign pc_branch_select[0] = isJ_x || isJal_x;
+	// 00: bne || blt, 01: J || Jal || Bex, 10: Jr, 11: N/A
+	assign pc_branch_select[0] = isJ_x || isJal_x || isBex_x;
 	assign pc_branch_select[1] = isJr_x;
 	
 	wire [31:0] T_x_extend;
@@ -296,6 +320,29 @@ module processor(
 		.in0(pc_add_n), .in1(T_x_extend), .in2(pre_alu_input_2), .in3(32'b0),
 		.select(pc_branch_select));
 		
+		
+	// ====== MX/WX Bypassing for RStatus (setx)
+		
+	wire is_rs_30, is_rt_30, is_rd_30;
+	equality5 reg30_eq1 (.out(is_rs_30), .a(5'd30), .b(rs_x));
+	equality5 reg30_eq2 (.out(is_rt_30), .a(5'd30), .b(rt_x));
+	equality5 reg30_eq3 (.out(is_rd_30), .a(5'd30), .b(rd_x));
+	
+	wire MX_30_rs, MX_30_rt, MX_30_rd;
+	wire WX_30_rs, WX_30_rt, WX_30_rd;
+	assign MX_30_rs = (isSetx_m || isRStatus_xm) && 
+		((is_rs_30 && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x)) || isBex_x);
+	assign MX_30_rt = (isSetx_m || isRStatus_xm) &&
+		(is_rt_30 && (isALUOp_x || isAddi_x));
+	assign MX_30_rd = (isSetx_m || isRStatus_xm) &&
+		(is_rd_30 && (isSW_x || isBne_x || isBlt_x));
+	assign WX_30_rs = (isSetx_w || isRStatus_mw) && 
+		((is_rs_30 && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x)) || isBex_x);
+	assign WX_30_rt = (isSetx_w || isRStatus_mw) &&
+		(is_rt_30 && (isALUOp_x || isAddi_x));
+	assign WX_30_rd = (isSetx_w || isRStatus_mw) &&
+		(is_rd_30 && (isSW_x || isBne_x || isBlt_x));
+		
 	
 	// ====== MX Bypassing
 	
@@ -308,9 +355,11 @@ module processor(
 	
 	*/
 	
+	
 	wire reg_match_rs_mx, MX1;
 	equality5 mx1_eq (.out(reg_match_rs_mx), .a(rd_m), .b(rs_x));
-	assign MX1 = (reg_match_rs_mx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x))
+	assign MX1 = (reg_match_rs_mx && (isALUOp_x || isAddi_x || isSW_x || isLW_x 
+		|| isBne_x || isBlt_x))
 		&& (isALUOp_m || isAddi_m);
 	
 	wire reg_match_rt_mx, reg_match_rd_mx, MX2;
@@ -324,7 +373,8 @@ module processor(
 	
 	wire reg_match_rs_wx, WX1;
 	equality5 wx1_eq (.out(reg_match_rs_wx), .a(rd_w), .b(rs_x));
-	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x))
+	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x 
+		|| isBne_x || isBlt_x || isBex_x))
 		&& (isALUOp_w || isAddi_w);
 	
 	wire reg_match_rt_wx, reg_match_rd_wx, WX2;
@@ -345,28 +395,46 @@ module processor(
 	assign sel2[0] = WX2 || MX2;
 	assign sel2[1] = MX2;
 	
+	wire [31:0] alu_1, alu_2;
+	
 	// 00: a_dx/b_dx, 01: WX, 10: MX, 11: MX
-	mux_4_1 mux_alu_input_1 (
-		.out(alu_input_1), 
+	mux_4_1 mux_alu_1 (
+		.out(alu_1), 
 		.in0(a_dx), .in1(data_writeReg), .in2(o_xm), .in3(o_xm),
 		.select(sel1));
 		
-	mux_4_1 mux_alu_input_2 (
-		.out(pre_alu_input_2), 
+	mux_4_1 mux_alu_2 (
+		.out(alu_2), 
 		.in0(b_dx), .in1(data_writeReg), .in2(o_xm), .in3(o_xm),
 		.select(sel2));
+		
+	wire [1:0] sel_alu_input1;
+	assign sel_alu_input1[0] = MX_30_rs;
+	assign sel_alu_input1[1] = WX_30_rs && (~MX_30_rs && ~MX1);
+	
+	wire [1:0] sel_alu_input2;
+	assign sel_alu_input2[0] = MX_30_rt || MX_30_rd;
+	assign sel_alu_input2[1] = (WX_30_rt || WX_30_rd) && (~(MX_30_rt || MX_30_rd) && ~MX2);
+
+	mux_4_1 mux_alu_input_1 (
+		.out(alu_input_1), 
+		.in0(alu_1), .in1(isRStatus_xm ? rStatus_xm : T_m_extend), 
+		.in2(isRStatus_mw ? rStatus_mw : T_w_extend), .in3(noop),
+		.select(sel_alu_input1));
+	
+	mux_4_1 mux_alu_input_2 (
+		.out(pre_alu_input_2), 
+		.in0(alu_2), .in1(isRStatus_xm ? rStatus_xm : T_m_extend), 
+		.in2(isRStatus_mw ? rStatus_mw : T_w_extend), .in3(noop),
+		.select(sel_alu_input2));
 	
 	
 	alu alu1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), .ctrl_ALUopcode(final_aluop),
 		.ctrl_shiftamt(shamt), .data_result(alu_out), .isNotEqual(bne_alu), 
 		.isLessThan(blt_alu), .overflow(overflow_x), .carry_in(1'b0));
 		
-	wire [31:0] o_in_x, b_in_x;
-	assign o_in_x = isBranch ? noop : alu_out;
-	assign b_in_x = isBranch ? noop : pre_alu_input_2;
-		
 	
-	// ====== R Status
+	// ====== Multdiv
 	
 	wire isAdd_x;
 	assign isAdd_x = ~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&~aluop[0];
@@ -377,8 +445,33 @@ module processor(
 	wire isDiv_x;
 	assign isDiv_x = ~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&aluop[0];
 	
-	wire isRStatus_x, isRStatus_xm;
-	wire [31:0] rStatus_x, rStatus_xm;
+	wire [31:0] multdiv_result;
+	wire data_exception, data_resultRDY;
+	
+	// Check if multdiv is still ongoing
+	wire startMultDiv, ready_reg;
+	dflipflop dff_startMultDiv (.d(isMul_x || isDiv_x), 
+		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(ready_reg));
+	assign startMultDiv = (isMul_x || isDiv_x) && ~ready_reg;
+	
+	wire isStillMultDiv, pre_isStillMultDiv;
+	assign isStillMultDiv = startMultDiv || pre_isStillMultDiv;
+	dflipflop dff_preMultDiv (.d(startMultDiv || pre_isStillMultDiv), 
+		.clk(clock), .clrn(~data_resultRDY), .prn(1'b1), .ena(1'b1), .q(pre_isStillMultDiv));
+	
+	assign isStall_pc = (isStillMultDiv && ~data_resultRDY);
+	assign isStall_fd = (isStillMultDiv && ~data_resultRDY);
+	assign isStall_dx = (isStillMultDiv && ~data_resultRDY);
+	
+	multdiv md1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), 
+		.ctrl_MULT(isMul_x && startMultDiv), .ctrl_DIV(isDiv_x && startMultDiv), .clock(clock), 
+		.data_result(multdiv_result), .data_exception(data_exception), .data_resultRDY(data_resultRDY));
+		
+	
+	// ====== R Status
+	
+	wire isRStatus_x;
+	wire [31:0] rStatus_x;
 	assign isRStatus_x = (isALUOp_x && (
 		(isAdd_x && overflow_x) ||
 		(isSub_x && overflow_x) ||
@@ -391,14 +484,36 @@ module processor(
 	assign rStatus_x[31:3] = 29'b0;
 	
 	
-	latch_xm latch_xm1 (.ir_in(ir_dx), .o_in(o_in_x), .b_in(b_in_x), .isRStatus_in(isRStatus_x), 
+	wire [31:0] o_in_x, b_in_x;
+	
+	// 00: normal alu output, 01: noop(branches or still in multdiv computation)
+	// 10: finished multdiv, dataresultRDY is 1, 11: unused
+	wire [1:0] o_in_x_sel;
+	assign o_in_x_sel[0] = isBranch || isStillMultDiv;
+	assign o_in_x_sel[1] = data_resultRDY;
+	
+	mux_4_1 o_in_x_mux (
+		.out(o_in_x), 
+		.in0(alu_out), .in1(noop), .in2(multdiv_result), .in3(multdiv_result),
+		.select(o_in_x_sel));
+		
+	mux_4_1 b_in_x_mux (
+		.out(b_in_x), 
+		.in0(pre_alu_input_2), .in1(noop), .in2(pre_alu_input_2), .in3(pre_alu_input_2),
+		.select(o_in_x_sel));
+		
+		
+	wire [31:0] ir_in_xm;
+	assign ir_in_xm = isBranch || (isStillMultDiv && ~data_resultRDY) ? noop : ir_dx;
+	
+	
+	latch_xm latch_xm1 (.ir_in(ir_in_xm), .o_in(o_in_x), .b_in(b_in_x), .isRStatus_in(isRStatus_x), 
 		.rStatus_in(rStatus_x), .clock(clock), .reset(reset), .ir_out(ir_xm), .o_out(o_xm), 
 		.b_out(b_xm), .isRStatus_out(isRStatus_xm), .rStatus_out(rStatus_xm));
 	
 	//========================================= Memory Stage
 	
-	wire [31:0] ir_mw, o_mw, d_mw, rStatus_mw;
-	wire isRStatus_mw;
+	wire [31:0] ir_mw, o_mw, d_mw;
 	
 	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .isRStatus_in(isRStatus_xm), 
 		.rStatus_in(rStatus_xm), .clock(clock), .reset(reset), .ir_out(ir_mw), .o_out(o_mw), 
@@ -420,8 +535,17 @@ module processor(
 	assign isJr_m = ~opm[4]&~opm[3]&opm[2]&~opm[1]&~opm[0];
 	assign isBlt_m = ~opm[4]&~opm[3]&opm[2]&opm[1]&~opm[0];
 	
+	wire isBex_m;
+	assign isBex_m = opm[4]&~opm[3]&opm[2]&opm[1]&~opm[0];
+	assign isSetx_m = opm[4]&~opm[3]&opm[2]&~opm[1]&opm[0];
+	
 	assign isR_m = isALUOp_m;
 	assign isI_m = isAddi_m || isSW_m || isLW_m;
+	
+	wire [26:0] T_m;
+	assign T_m = ir_xm[26:0];
+	assign T_m_extend[26:0] = T_m;
+	assign T_m_extend[31:27] = 5'b00000;
 	
 	// ====== WM Bypassing
 	
@@ -452,17 +576,31 @@ module processor(
 	assign isJr_w = ~opw[4]&~opw[3]&opw[2]&~opw[1]&~opw[0];
 	assign isBlt_w = ~opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
 	
+	wire isBex_w;
+	assign isBex_w = opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
+	assign isSetx_w = opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0];
+	
 	assign isR_w = isALUOp_w;
 	assign isI_w = isAddi_w || isSW_w || isLW_w;
 	
-	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw;
+	wire [26:0] T_w;
+	assign T_w = ir_mw[26:0];
+	assign T_w_extend[26:0] = T_w;
+	assign T_w_extend[31:27] = 5'b00000;
 	
-   assign ctrl_writeReg = isRStatus_mw ? 5'd30 : rd_w;
-	wire [31:0] data_writeReg_d_or_o;
-   assign data_writeReg_d_or_o = isLW_w ? d_mw : o_mw;
-	assign data_writeReg = isRStatus_mw ? rStatus_mw : data_writeReg_d_or_o;
+	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw || isSetx_w;
 	
+	// data write sel
+	// 00: o_mw, 01: rStatus_mw, 10: T extend, 11: d_mw
+	wire [1:0] data_write_sel;
+	assign data_write_sel[0] = isRStatus_mw || isLW_w;
+	assign data_write_sel[1] = isSetx_w || isLW_w;
 	
+   assign ctrl_writeReg = (isRStatus_mw || isSetx_w) ? 5'd30 : rd_w;
+	mux_4_1 mux_data_write (
+		.out(data_writeReg), 
+		.in0(o_mw), .in1(rStatus_mw), .in2(T_w_extend), .in3(d_mw),
+		.select(data_write_sel));
 	 
 
 endmodule 
