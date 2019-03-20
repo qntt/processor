@@ -212,11 +212,17 @@ module processor(
 	
 	// bypassing the updated write register value if write address matches rd
 	// similar to writing to register before reading in the same clock cycle
-	assign a_out_regfile = data_readRegA;
-	wire rdNotEqualWriteAddress;
-	assign rdNotEqualWriteAddress = (rd_d[4]^ctrl_writeReg[4] || rd_d[3]^ctrl_writeReg[3] ||
-		rd_d[2]^ctrl_writeReg[2] || rd_d[1]^ctrl_writeReg[1] || rd_d[0]^ctrl_writeReg[0]);
-	assign b_out_regfile = (~rdNotEqualWriteAddress && need_rd_reg)
+	
+	wire rdw_rsd, rdw_rtd, rdw_rdd;
+	
+	equality5 update_reg1 (.out(rdw_rsd), .a(ctrl_writeReg), .b(rs_d));
+	equality5 update_reg2 (.out(rdw_rtd), .a(ctrl_writeReg), .b(rt_d));
+	equality5 update_reg3 (.out(rdw_rdd), .a(ctrl_writeReg), .b(rd_d));
+
+	assign a_out_regfile = rdw_rsd
+		? data_writeReg : data_readRegA;
+	
+	assign b_out_regfile = ((need_rd_reg && rdw_rdd) || rdw_rtd)
 		? data_writeReg : data_readRegB;	
 		
 	assign a_in_dx = isBranch || isLoadToALU ? noop : a_out_regfile;
