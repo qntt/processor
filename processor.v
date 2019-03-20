@@ -129,6 +129,8 @@ module processor(
 	 wire isRStatus_xm, isRStatus_mw;
 	 wire [31:0] rStatus_xm, rStatus_mw;
 	 
+	 wire isLoadToALU;
+	 
 	//========================================= Fetch Stage
 	
 	wire negclock;
@@ -159,7 +161,7 @@ module processor(
 	wire [31:0] ir_dx, pc_dx, a_dx, b_dx, a_out_regfile, b_out_regfile, a_in_dx, b_in_dx;
 	
 	wire [31:0] ir_in_dx;
-	assign ir_in_dx = isBranch ? noop : ir_fd;
+	assign ir_in_dx = isBranch || isLoadToALU ? noop : ir_fd;
 		
 	latch_dx latch_dx1 (.ir_in(ir_in_dx), .pc_in(pc_fd), .a_in(a_in_dx), .b_in(b_in_dx), 
 		.clock(clock), .reset(reset), .enable(~isStall_dx), .ir_out(ir_dx), .pc_out(pc_dx), 
@@ -217,8 +219,8 @@ module processor(
 	assign b_out_regfile = (~rdNotEqualWriteAddress && need_rd_reg)
 		? data_writeReg : data_readRegB;	
 		
-	assign a_in_dx = isBranch ? noop : a_out_regfile;
-	assign b_in_dx = isBranch || isBex_d ? noop : b_out_regfile;
+	assign a_in_dx = isBranch || isLoadToALU ? noop : a_out_regfile;
+	assign b_in_dx = isBranch || isBex_d || isLoadToALU ? noop : b_out_regfile;
 	
 	//========================================= Execute Stage
 	
@@ -459,8 +461,8 @@ module processor(
 	dflipflop dff_preMultDiv (.d(startMultDiv || pre_isStillMultDiv), 
 		.clk(clock), .clrn(~data_resultRDY), .prn(1'b1), .ena(1'b1), .q(pre_isStillMultDiv));
 	
-	assign isStall_pc = (isStillMultDiv && ~data_resultRDY);
-	assign isStall_fd = (isStillMultDiv && ~data_resultRDY);
+	assign isStall_pc = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
+	assign isStall_fd = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
 	assign isStall_dx = (isStillMultDiv && ~data_resultRDY);
 	
 	multdiv md1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), 
@@ -601,6 +603,11 @@ module processor(
 		.out(data_writeReg), 
 		.in0(o_mw), .in1(rStatus_mw), .in2(T_w_extend), .in3(d_mw),
 		.select(data_write_sel));
+		
+	wire rtd_rdx, rsd_rdx;
+	equality5 loadStall1 (.out(rtd_rdx), .a(rt_d), .b(rd_x));
+	equality5 loadStall2 (.out(rsd_rdx), .a(rs_d), .b(rd_x));
+	assign isLoadToALU = isLW_x && ((rtd_rdx) || (rsd_rdx && ~isSW_d)) && isALUOp_d;
 	 
 
 endmodule 
