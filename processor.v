@@ -126,6 +126,9 @@ module processor(
 	 wire [31:0] T_m_extend;
 	 wire [31:0] T_w_extend;
 	 
+	 wire isRStatus_xm, isRStatus_mw;
+	 wire [31:0] rStatus_xm, rStatus_mw;
+	 
 	//========================================= Fetch Stage
 	
 	wire negclock;
@@ -327,17 +330,17 @@ module processor(
 	
 	wire MX_30_rs, MX_30_rt, MX_30_rd;
 	wire WX_30_rs, WX_30_rt, WX_30_rd;
-	assign MX_30_rs = isSetx_m && 
+	assign MX_30_rs = (isSetx_m || isRStatus_xm) && 
 		((is_rs_30 && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x)) || isBex_x);
-	assign MX_30_rt = isSetx_m &&
+	assign MX_30_rt = (isSetx_m || isRStatus_xm) &&
 		(is_rt_30 && (isALUOp_x || isAddi_x));
-	assign MX_30_rd = isSetx_m &&
+	assign MX_30_rd = (isSetx_m || isRStatus_xm) &&
 		(is_rd_30 && (isSW_x || isBne_x || isBlt_x));
-	assign WX_30_rs = isSetx_w && 
+	assign WX_30_rs = (isSetx_w || isRStatus_mw) && 
 		((is_rs_30 && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isBne_x || isBlt_x)) || isBex_x);
-	assign WX_30_rt = isSetx_w &&
+	assign WX_30_rt = (isSetx_w || isRStatus_mw) &&
 		(is_rt_30 && (isALUOp_x || isAddi_x));
-	assign WX_30_rd = isSetx_w &&
+	assign WX_30_rd = (isSetx_w || isRStatus_mw) &&
 		(is_rd_30 && (isSW_x || isBne_x || isBlt_x));
 		
 	
@@ -415,12 +418,14 @@ module processor(
 
 	mux_4_1 mux_alu_input_1 (
 		.out(alu_input_1), 
-		.in0(alu_1), .in1(T_m_extend), .in2(T_w_extend), .in3(noop),
+		.in0(alu_1), .in1(isRStatus_xm ? rStatus_xm : T_m_extend), 
+		.in2(isRStatus_mw ? rStatus_mw : T_w_extend), .in3(noop),
 		.select(sel_alu_input1));
 	
 	mux_4_1 mux_alu_input_2 (
 		.out(pre_alu_input_2), 
-		.in0(alu_2), .in1(T_m_extend), .in2(T_w_extend), .in3(noop),
+		.in0(alu_2), .in1(isRStatus_xm ? rStatus_xm : T_m_extend), 
+		.in2(isRStatus_mw ? rStatus_mw : T_w_extend), .in3(noop),
 		.select(sel_alu_input2));
 	
 	
@@ -465,8 +470,8 @@ module processor(
 	
 	// ====== R Status
 	
-	wire isRStatus_x, isRStatus_xm;
-	wire [31:0] rStatus_x, rStatus_xm;
+	wire isRStatus_x;
+	wire [31:0] rStatus_x;
 	assign isRStatus_x = (isALUOp_x && (
 		(isAdd_x && overflow_x) ||
 		(isSub_x && overflow_x) ||
@@ -508,8 +513,7 @@ module processor(
 	
 	//========================================= Memory Stage
 	
-	wire [31:0] ir_mw, o_mw, d_mw, rStatus_mw;
-	wire isRStatus_mw;
+	wire [31:0] ir_mw, o_mw, d_mw;
 	
 	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .isRStatus_in(isRStatus_xm), 
 		.rStatus_in(rStatus_xm), .clock(clock), .reset(reset), .ir_out(ir_mw), .o_out(o_mw), 
@@ -587,7 +591,7 @@ module processor(
 	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw || isSetx_w;
 	
 	// data write sel
-	// 00: o_mw, 01: rStatus_mw, 10: T extend, 11: d
+	// 00: o_mw, 01: rStatus_mw, 10: T extend, 11: d_mw
 	wire [1:0] data_write_sel;
 	assign data_write_sel[0] = isRStatus_mw || isLW_w;
 	assign data_write_sel[1] = isSetx_w || isLW_w;
