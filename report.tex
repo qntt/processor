@@ -3,8 +3,8 @@
 \begin{document}
 
 \title{ECE 350: Digital Systems Project Checkpoint 4}
-\author{Your Name} % Change this to your name
-\date{\today} % Change this to the date you are submitting
+\author{Minh Tran} % Change this to your name
+\date{March 19, 2019} % Change this to the date you are submitting
 \maketitle
 
 \section*{Duke Community Standard}
@@ -16,6 +16,40 @@ By submitting this \LaTeX{} document, I affirm that
     \item I further acknowledge that any content not included in this commit under the version control system cannot be considered as a part of my submission.
     \item Finally, I understand that a submission is considered submitted when it has been pushed to the server.
 \end{enumerate}
+
+\newpage
+
+\section{Bypasses}
+\subsection{MX and WX Bypasses}
+I have implemented by MX and WX bypasses in my processor. For MX/WX bypassing, the following 3 conditions must be met:
+(1) the register rs/rt/rd in Execute matches with rd in Memory/Write Back, (2) the operation in Execute needs to use the updated value in rs/rt/rd in Execute (must be a source register), (3) and the operation in Memory actually updates register rs/rt/rd (must be a destination register).
+
+For (2), I had to distinguish whether or not rd was a destination register or a source register by looking at the opcode. For example, if the opcode was a blt operation then rd is a source register and an ALU operation indicates that rd is a destination register. 
+
+If all conditions are met then there is a mux over each of the 2 ALU inputs that would forward the updated register value to the corresponding ALU input. Additionally, if both MX and WX were possible for the same register, then I close to forward the value from MX because this value is more up-to-date.
+
+\subsection{WM Bypass}
+In this case, the only possible scenario is an ALU or lw operation in the writeback stage and sw operation in the memory stage. And the rd in both stage match. There is a mux that selects the value of rd in the writeback stage if this bypass is needed.
+
+\section{Regfile}
+My register file (regfile) consists of 32 32-bit registers. Each register has 32 d-flip flops and activates at the positive clock edge. The regfile is able to read from 2 registers at one time which is useful because many operations in the processor are binary operations like the ALU and multdiv. The regfile can write to one register per clock cycle. 
+
+The regfile cannot write and read into a register in the same clock cycle on its own. However, if there is a situation where the regfile must write and read from the same register, I was able to get around this by bypassing the updated register value from the write back stage into the correct input of the D/X latch which would propagate the correct register value into the execute stage.
+
+\section{ALU}
+The heart of my ALU lies 4 8-bit carry-lookahead adders that are connected in series. From my experiments, I noticed that this configuration was faster than using 8 4-bit CLA in series and a carry-select adder using 2 8-bit CLA at each end of the mux where the select bit is the carry-out value of the lower 16 bits addition. For the shifter, I used a barrel shifter.
+
+\section{Mult Div}
+\subsection{Multiplier Design}
+I implemented 3-bits Modified Booth's algorithm for the multiplier. My design is based off of the circuit design in the slides for this course. I used a 64-bit register file of D flip-flops to store the product/multiplier and used wired shift to do all shifting between flip-flips and from/to ALU. I used a 16-bit shift register to count when I have completed 16 clock cycles. To reset, a clear signal is sent to all flip-flips in the multiplier including the shift register. I detected overflow by checking if the first 32 bits of the product are not the same as the 33th bit or when any step of Booth's algorithm detects an overflow. The result of using the 3-bits Booth's was that the multiplication operation took 16 clock cycles to complete.
+
+\subsection{Divider Design}
+I reused the shift register from the multiplier, but I upgraded it to a 32-bit counter for division. I implemented the "Even better divider" circuit from the course slides. I used a 64-bit remainder/quotient block which is built by using a 64-bit register file of D flip-flops. Negative operands are flipped to positive and are flipped back once a result is ready. The division operation took 32 clock cycles to complete.
+
+\section{RStatus/Register 30}
+One of the hardest tasks for me when I worked on the processor was trying to make sure that the correct value of rstatus was being forwarded. There are 3 types of ways rstatus can be modified. These are: (1) using the setx operation, (2) exceptions/overflows from the multdiv/ALU, and (3) modifying rstatus as a regular register.
+
+If the user is modifying rstatus as normal register (3), then I wouldn't have to add any additional logic because the logic in the bypassing section covers this case. If the user uses the setx operation, then the old bypassing logic is not sufficient because the IR for setx doesn't carry rd, rs, or rt. Therefore, I added some logic to check if the any of the source registers in the execute stage uses register 30 and forward the updated rstatus value. I have also done the same for when the alu/multdiv operation throws an exception. I added a port in the X/M and M/W latches to propagate the rstatus values from the execute stage. If there is no rstatus value coming from the execute stage, I also propagate a boolean value that indicates of rstatus has been modified .
 
 
 \end{document}

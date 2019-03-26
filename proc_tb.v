@@ -17,7 +17,7 @@ module proc_tb();
 	 wire[31:0] signextend = dut.my_processor.signextend;
 	 
 	 wire[31:0] d_mw = dut.my_processor.d_mw;
-	 wire[31:0] b_out_regfile = dut.my_processor.b_out_regfile;
+	 //wire[31:0] b_out_regfile = dut.my_processor.b_out_regfile;
 	 wire sel2 = dut.my_processor.sel2;
 
 	 wire MX1 = dut.my_processor.MX1;
@@ -68,10 +68,21 @@ module proc_tb();
 	 wire bne_alu = dut.my_processor.bne_alu;
 	 wire [1:0] sel_alu_input1 = dut.my_processor.sel_alu_input1;
 	 
+	 
+	 //wire data_writeReg = dut.data_writeReg;
+	 wire a_out_regfile = dut.my_processor.a_out_regfile;
+	 wire b_out_regfile = dut.my_processor.b_out_regfile;
+	 wire match_write_rs = dut.my_processor.match_write_rs;
+	 wire isLoadToALU = dut.my_processor.isLoadToALU;
+	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
+		  
+		  // WB bypass to D
+		  //$monitor("pc: %d, data_writeReg: %d, ctrl_writeReg: %d, a_out_regfile: %d, b_out_regfile: %d, match_write_rs: %d",
+		  //pc, data_writeReg, ctrl_writeReg, a_out_regfile, b_out_regfile, match_write_rs);
 		  
 		  // multdiv with branching
 		  //$monitor("clock: %d, pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, isBranch, %d, branch_value: %d", 
@@ -86,8 +97,8 @@ module proc_tb();
 		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, isBex_x, bne_alu, ctrl_writeEnable, ctrl_writeReg, data_writeReg, sel_alu_input1);
 		  
 		  // processor output monitor
-		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
-		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
+		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isLW2ALU: %d", 
+		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isLoadToALU);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         

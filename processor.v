@@ -116,7 +116,7 @@ module processor(
 	 wire [31:0] branch_value;
 	 wire isBranch;
 	 
-	 wire isStall_pc, isStall_fd, isStall_dx;
+	 wire isStall_pc, isStall_fd, isStall_dx, isStall_xm;
 	 
 	 wire [31:0] noop;
 	 assign noop = 32'b0;
@@ -206,19 +206,34 @@ module processor(
 	assign isI_d = isAddi_d || isSW_d || isLW_d;
 	
 	assign ctrl_readRegA = isBex_d ? 5'd30 : rs_d;
-	wire need_rd_reg = isSW_d || isBne_d || isBlt_d || isJr_d;
+	wire need_rd_reg;
+	assign need_rd_reg = isSW_d || isBne_d || isBlt_d || isJr_d;
+	wire need_rt_reg;
+	assign need_rt_reg = isALUOp_d;
+	wire need_rs_reg;
+	assign need_rs_reg = isALUOp_d || isSW_d || isLW_d || isBlt_d || isBne_d;
+	
 	
 	assign ctrl_readRegB = need_rd_reg ? rd_d : rt_d;
 	
 	// bypassing the updated write register value if write address matches rd
 	// similar to writing to register before reading in the same clock cycle
+//	assign a_out_regfile = data_readRegA;
+//	wire rdNotEqualWriteAddress;
+//	assign rdNotEqualWriteAddress = (rd_d[4]^ctrl_writeReg[4] || rd_d[3]^ctrl_writeReg[3] ||
+//		rd_d[2]^ctrl_writeReg[2] || rd_d[1]^ctrl_writeReg[1] || rd_d[0]^ctrl_writeReg[0]);
+//	assign b_out_regfile = (~rdNotEqualWriteAddress && need_rd_reg)
+//		? data_writeReg : data_readRegB;	
+
+	wire match_write_rs, match_write_rt, match_write_rd;
+	equality5 write_a_eq (.out(match_write_rs), .a(ctrl_writeReg), .b(rs_d));
+	equality5 write_b_eq1 (.out(match_write_rt), .a(ctrl_writeReg), .b(rt_d));
+	equality5 write_b_eq2 (.out(match_write_rd), .a(ctrl_writeReg), .b(rd_d));
 	
-	assign a_out_regfile = data_readRegA;	
- 	wire rdNotEqualWriteAddress;		wire rdw_rsd, rdw_rtd, rdw_rdd;
-	assign rdNotEqualWriteAddress = (rd_d[4]^ctrl_writeReg[4] || rd_d[3]^ctrl_writeReg[3] ||	
- 		rd_d[2]^ctrl_writeReg[2] || rd_d[1]^ctrl_writeReg[1] || rd_d[0]^ctrl_writeReg[0]);		equality5 update_reg1 (.out(rdw_rsd), .a(ctrl_writeReg), .b(rs_d));
-	assign b_out_regfile = (~rdNotEqualWriteAddress && need_rd_reg)
-		? data_writeReg : data_readRegB;	
+	assign a_out_regfile = (match_write_rs && need_rs_reg && ctrl_writeEnable) 
+		? data_writeReg : data_readRegA;
+	assign b_out_regfile = (match_write_rt && need_rt_reg && ctrl_writeEnable) ||
+		(match_write_rd && need_rd_reg && ctrl_writeEnable) ? data_writeReg : data_readRegB;
 		
 	assign a_in_dx = isBranch || isLoadToALU ? noop : a_out_regfile;
 	assign b_in_dx = isBranch || isBex_d || isLoadToALU ? noop : b_out_regfile;
@@ -464,7 +479,8 @@ module processor(
 	
 	assign isStall_pc = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
 	assign isStall_fd = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
-	assign isStall_dx = (isStillMultDiv && ~data_resultRDY);
+	assign isStall_dx = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
+	assign isStall_mx = isLoadToALU;
 	
 	multdiv md1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), 
 		.ctrl_MULT(isMul_x && startMultDiv), .ctrl_DIV(isDiv_x && startMultDiv), .clock(clock), 
@@ -511,8 +527,8 @@ module processor(
 	
 	
 	latch_xm latch_xm1 (.ir_in(ir_in_xm), .o_in(o_in_x), .b_in(b_in_x), .isRStatus_in(isRStatus_x), 
-		.rStatus_in(rStatus_x), .clock(clock), .reset(reset), .ir_out(ir_xm), .o_out(o_xm), 
-		.b_out(b_xm), .isRStatus_out(isRStatus_xm), .rStatus_out(rStatus_xm));
+		.rStatus_in(rStatus_x), .clock(clock), .reset(reset), .enable(isStall_mx), .ir_out(ir_xm), 
+		.o_out(o_xm), .b_out(b_xm), .isRStatus_out(isRStatus_xm), .rStatus_out(rStatus_xm));
 	
 	//========================================= Memory Stage
 	
@@ -605,10 +621,10 @@ module processor(
 		.in0(o_mw), .in1(rStatus_mw), .in2(T_w_extend), .in3(d_mw),
 		.select(data_write_sel));
 		
-	wire rtd_rdx, rsd_rdx;
-	equality5 loadStall1 (.out(rtd_rdx), .a(rt_d), .b(rd_x));
-	equality5 loadStall2 (.out(rsd_rdx), .a(rs_d), .b(rd_x));
-	assign isLoadToALU = isLW_x && ((rtd_rdx) || (rsd_rdx && ~isSW_d)) && isALUOp_d;
+	wire rtx_rdm, rsx_rdm;
+	equality5 loadStall1 (.out(rtx_rdm), .a(rt_x), .b(rd_m));
+	equality5 loadStall2 (.out(rsx_rdm), .a(rs_x), .b(rd_m));
+	assign isLoadToALU = isLW_m && ((rtx_rdm) || (rsx_rdm && ~isSW_x)) && isALUOp_x;
 	 
 
 endmodule 
