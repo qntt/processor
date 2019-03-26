@@ -393,14 +393,14 @@ module processor(
 	equality5 wx1_eq (.out(reg_match_rs_wx), .a(rd_w), .b(rs_x));
 	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x 
 		|| isBne_x || isBlt_x || isBex_x))
-		&& (isALUOp_w || isAddi_w);
+		&& (isALUOp_w || isAddi_w || isLW_w);
 	
 	wire reg_match_rt_wx, reg_match_rd_wx, WX2;
 	equality5 wx2a_eq (.out(reg_match_rt_wx), .a(rd_w), .b(rt_x));
 	equality5 wx2b_eq (.out(reg_match_rd_wx), .a(rd_w), .b(rd_x));
 	assign WX2 = ((reg_match_rt_wx && (isALUOp_x)) || 
 		(reg_match_rd_wx && (isSW_x || isBne_x || isJr_x || isBlt_x))) &&
-		(isALUOp_w || isAddi_w);
+		(isALUOp_w || isAddi_w || isLW_w);
 	
 	// ====== Integrating MX and WX bypassing
 	
@@ -469,7 +469,7 @@ module processor(
 	// Check if multdiv is still ongoing
 	wire startMultDiv, ready_reg;
 	dflipflop dff_startMultDiv (.d(isMul_x || isDiv_x), 
-		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(ready_reg));
+		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(~isLoadToALU), .q(ready_reg));
 	assign startMultDiv = (isMul_x || isDiv_x) && ~ready_reg;
 	
 	wire isStillMultDiv, pre_isStillMultDiv;
@@ -480,10 +480,11 @@ module processor(
 	assign isStall_pc = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
 	assign isStall_fd = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
 	assign isStall_dx = (isStillMultDiv && ~data_resultRDY) || isLoadToALU;
-	assign isStall_mx = isLoadToALU;
+	assign isStall_xm = isLoadToALU;
 	
 	multdiv md1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), 
-		.ctrl_MULT(isMul_x && startMultDiv), .ctrl_DIV(isDiv_x && startMultDiv), .clock(clock), 
+		.ctrl_MULT(isMul_x && startMultDiv && ~isLoadToALU), 
+		.ctrl_DIV(isDiv_x && startMultDiv && ~isLoadToALU), .clock(clock), 
 		.data_result(multdiv_result), .data_exception(data_exception), .data_resultRDY(data_resultRDY));
 		
 	
@@ -508,7 +509,7 @@ module processor(
 	// 00: normal alu output, 01: noop(branches or still in multdiv computation)
 	// 10: finished multdiv, dataresultRDY is 1, 11: unused
 	wire [1:0] o_in_x_sel;
-	assign o_in_x_sel[0] = isBranch || isStillMultDiv;
+	assign o_in_x_sel[0] = isBranch || isStillMultDiv || isLoadToALU;
 	assign o_in_x_sel[1] = data_resultRDY;
 	
 	mux_4_1 o_in_x_mux (
@@ -525,10 +526,15 @@ module processor(
 	wire [31:0] ir_in_xm;
 	assign ir_in_xm = isBranch || (isStillMultDiv && ~data_resultRDY) ? noop : ir_dx;
 	
+	wire [31:0] all1;
+	assign all1 = 32'b11111111111111111111111111111111;
+	wire [31:0] ir_in_xm_final;
+	assign ir_in_xm_final = isLoadToALU ? all1: ir_in_xm;
 	
-	latch_xm latch_xm1 (.ir_in(ir_in_xm), .o_in(o_in_x), .b_in(b_in_x), .isRStatus_in(isRStatus_x), 
-		.rStatus_in(rStatus_x), .clock(clock), .reset(reset), .enable(isStall_mx), .ir_out(ir_xm), 
-		.o_out(o_xm), .b_out(b_xm), .isRStatus_out(isRStatus_xm), .rStatus_out(rStatus_xm));
+	latch_xm latch_xm1 (.ir_in(ir_in_xm_final), .o_in(o_in_x), .b_in(b_in_x), 
+		.isRStatus_in(isRStatus_x), .rStatus_in(rStatus_x), .clock(clock), .reset(reset), 
+		.enable(1'b1), .ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm), .isRStatus_out(isRStatus_xm), 
+		.rStatus_out(rStatus_xm));
 	
 	//========================================= Memory Stage
 	
