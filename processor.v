@@ -211,7 +211,7 @@ module processor(
 	wire need_rt_reg;
 	assign need_rt_reg = isALUOp_d;
 	wire need_rs_reg;
-	assign need_rs_reg = isALUOp_d || isSW_d || isLW_d || isBlt_d || isBne_d;
+	assign need_rs_reg = isALUOp_d || isAddi_d || isSW_d || isLW_d || isBlt_d || isBne_d;
 	
 	
 	assign ctrl_readRegB = need_rd_reg ? rd_d : rt_d;
