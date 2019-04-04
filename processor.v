@@ -211,7 +211,7 @@ module processor(
 	wire need_rt_reg;
 	assign need_rt_reg = isALUOp_d;
 	wire need_rs_reg;
-	assign need_rs_reg = isALUOp_d || isSW_d || isLW_d || isBlt_d || isBne_d;
+	assign need_rs_reg = isALUOp_d || isAddi_d || isSW_d || isLW_d || isBlt_d || isBne_d;
 	
 	
 	assign ctrl_readRegB = need_rd_reg ? rd_d : rt_d;
@@ -531,21 +531,18 @@ module processor(
 	wire [31:0] ir_in_xm_final;
 	assign ir_in_xm_final = isLoadToALU ? all1: ir_in_xm;
 	
-	wire [31:0] r31_xm;
-	
 	latch_xm latch_xm1 (.ir_in(ir_in_xm_final), .o_in(o_in_x), .b_in(b_in_x), 
 		.isRStatus_in(isRStatus_x), .rStatus_in(rStatus_x), .clock(clock), .reset(reset), 
 		.enable(1'b1), .ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm), .isRStatus_out(isRStatus_xm), 
-		.rStatus_out(rStatus_xm), .r31_in(pc_dx), .r31_out(r31_xm));
+		.rStatus_out(rStatus_xm));
 	
 	//========================================= Memory Stage
 	
-	wire [31:0] ir_mw, o_mw, d_mw, r31_mw;
+	wire [31:0] ir_mw, o_mw, d_mw;
 	
 	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .isRStatus_in(isRStatus_xm), 
 		.rStatus_in(rStatus_xm), .clock(clock), .reset(reset), .ir_out(ir_mw), .o_out(o_mw), 
-		.d_out(d_mw), .isRStatus_out(isRStatus_mw), .rStatus_out(rStatus_mw), 
-		.r31_in(r31_xm), .r31_out(r31_mw));
+		.d_out(d_mw), .isRStatus_out(isRStatus_mw), .rStatus_out(rStatus_mw));
 		
 	wire [4:0] opm;
 	assign opm = ir_xm[31:27];
@@ -604,9 +601,6 @@ module processor(
 	assign isJr_w = ~opw[4]&~opw[3]&opw[2]&~opw[1]&~opw[0];
 	assign isBlt_w = ~opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
 	
-	wire isJal_w;
-	assign isJal_w = ~opw[4]&~opw[3]&~opw[2]&opw[1]&opw[0];
-	
 	wire isBex_w;
 	assign isBex_w = opw[4]&~opw[3]&opw[2]&opw[1]&~opw[0];
 	assign isSetx_w = opw[4]&~opw[3]&opw[2]&~opw[1]&opw[0];
@@ -619,7 +613,7 @@ module processor(
 	assign T_w_extend[26:0] = T_w;
 	assign T_w_extend[31:27] = 5'b00000;
 	
-	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw || isSetx_w || isJal_w;
+	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw || isSetx_w;
 	
 	// data write sel
 	// 00: o_mw, 01: rStatus_mw, 10: T extend, 11: d_mw
@@ -627,15 +621,11 @@ module processor(
 	assign data_write_sel[0] = isRStatus_mw || isLW_w;
 	assign data_write_sel[1] = isSetx_w || isLW_w;
 	
-   assign ctrl_writeReg = (isRStatus_mw || isSetx_w) ? 5'd30 : (isJal_w ? 5'd31 : rd_w);
-	
-	wire [31:0] data_writeReg_temp;
+   assign ctrl_writeReg = (isRStatus_mw || isSetx_w) ? 5'd30 : rd_w;
 	mux_4_1 mux_data_write (
-		.out(data_writeReg_temp), 
+		.out(data_writeReg), 
 		.in0(o_mw), .in1(rStatus_mw), .in2(T_w_extend), .in3(d_mw),
 		.select(data_write_sel));
-		
-	assign data_writeReg = isJal_w ? r31_mw : data_writeReg_temp;
 		
 	wire rtx_rdm, rsx_rdm;
 	equality5 loadStall1 (.out(rtx_rdm), .a(rt_x), .b(rd_m));
@@ -652,4 +642,4 @@ module equality5 (out, a, b);
 
 	assign out = ~(a[4]^b[4] || a[3]^b[3] || a[2]^b[2] || a[1]^b[1] || a[0]^b[0]);
 
-endmodule 
+endmodule 﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú
