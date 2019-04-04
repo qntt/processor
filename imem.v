@@ -87,7 +87,11 @@ module imem (
 		altsyncram_component.address_aclr_a = "NONE",
 		altsyncram_component.clock_enable_input_a = "NORMAL",
 		altsyncram_component.clock_enable_output_a = "BYPASS",
+<<<<<<< HEAD
 		altsyncram_component.init_file = "E:/test_jal1.mif",
+=======
+		altsyncram_component.init_file = "E:/test_all4.mif",
+>>>>>>> parent of 6c50d4d... tested lw->alu op works and WB->D bypassing works, division works
 		altsyncram_component.intended_device_family = "Cyclone IV E",
 		altsyncram_component.lpm_hint = "ENABLE_RUNTIME_MOD=NO",
 		altsyncram_component.lpm_type = "altsyncram",
