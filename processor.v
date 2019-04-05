@@ -528,10 +528,19 @@ module processor(
 	
 	wire [31:0] all1;
 	assign all1 = 32'b11111111111111111111111111111111;
-	wire [31:0] ir_in_xm_final;
-	assign ir_in_xm_final = isLoadToALU ? all1: ir_in_xm;
 	
-	latch_xm latch_xm1 (.ir_in(ir_in_xm_final), .o_in(o_in_x), .b_in(b_in_x), 
+	wire [31:0] ir_in_xm_jal;
+	assign ir_in_xm_jal[31:27] = 5'b00000;
+	assign ir_in_xm_jal[26:22] = 5'd31;
+	assign ir_in_xm_jal[21:0] = 22'b0;
+	
+	wire [31:0] ir_in_xm_final;
+	assign ir_in_xm_final = isLoadToALU ? all1: (isJal_x ? ir_in_xm_jal : ir_in_xm);
+	
+	wire [31:0] o_in_x_final;
+	assign o_in_x_final = isJal_x ? pc_dx : o_in_x;
+	
+	latch_xm latch_xm1 (.ir_in(ir_in_xm_final), .o_in(o_in_x_final), .b_in(b_in_x), 
 		.isRStatus_in(isRStatus_x), .rStatus_in(rStatus_x), .clock(clock), .reset(reset), 
 		.enable(1'b1), .ir_out(ir_xm), .o_out(o_xm), .b_out(b_xm), .isRStatus_out(isRStatus_xm), 
 		.rStatus_out(rStatus_xm));
@@ -642,4 +651,4 @@ module equality5 (out, a, b);
 
 	assign out = ~(a[4]^b[4] || a[3]^b[3] || a[2]^b[2] || a[1]^b[1] || a[0]^b[0]);
 
-endmodule 﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú﫺ú
+endmodule 
