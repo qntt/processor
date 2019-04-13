@@ -69,7 +69,9 @@ module processor(
     ctrl_readRegB,                  // O: Register to read from port B of regfile
     data_writeReg,                  // O: Data to write to for regfile
     data_readRegA,                  // I: Data from port A of regfile
-    data_readRegB                   // I: Data from port B of regfile
+    data_readRegB,                  // I: Data from port B of regfile
+	 
+	 snake
 );
     // Control signals
     input clock, reset;
@@ -89,6 +91,8 @@ module processor(
     output [4:0] ctrl_writeReg, ctrl_readRegA, ctrl_readRegB;
     output [31:0] data_writeReg;
     input [31:0] data_readRegA, data_readRegB;
+	 
+	 output [226*32-1:0] snake;
 	 
 	 wire [4:0] rd_m, rs_m, rt_m;
 	 wire [4:0] rd_w, rs_w, rt_w;
@@ -175,6 +179,9 @@ module processor(
 	assign rs_d = ir_fd[21:17];
 	assign rt_d = ir_fd[16:12];
 	
+	wire isLoadSnake_d;
+	assign isLoadSnake_d = ~opd[4]&opd[3]&opd[2]&opd[1]&opd[0];
+	
 	wire isSW_d;
 	assign isSW_d = ~opd[4]&~opd[3]&opd[2]&opd[1]&opd[0];
 	wire isLW_d;
@@ -211,7 +218,7 @@ module processor(
 	wire need_rt_reg;
 	assign need_rt_reg = isALUOp_d;
 	wire need_rs_reg;
-	assign need_rs_reg = isALUOp_d || isAddi_d || isSW_d || isLW_d || isBlt_d || isBne_d;
+	assign need_rs_reg = isALUOp_d || isAddi_d || isSW_d || isLW_d || isBlt_d || isBne_d || isLoadSnake_d;
 	
 	
 	assign ctrl_readRegB = need_rd_reg ? rd_d : rt_d;
@@ -264,6 +271,9 @@ module processor(
 	wire [31:0] signextend;
 	assign signextend[16:0] = immediate[16:0];
 	assign signextend[31:17] = immediate[16] ? 15'b111111111111111 : 15'b0;
+	
+	wire isLoadSnake_x;
+	assign isLoadSnake_x = ~opx[4]&opx[3]&opx[2]&opx[1]&opx[0];
 			
 	wire isSW_x;
 	assign isSW_x = ~opx[4]&~opx[3]&opx[2]&opx[1]&opx[0];
@@ -293,7 +303,7 @@ module processor(
 	wire isR_x;
 	assign isR_x = isALUOp_x;
 	wire isI_x;
-	assign isI_x = isAddi_x || isSW_x || isLW_x;
+	assign isI_x = isAddi_x || isSW_x || isLW_x || isLoadSnake_x;
 	
 	wire [31:0] alu_input_1;
 	wire [31:0] pre_alu_input_2;
@@ -376,7 +386,7 @@ module processor(
 	
 	wire reg_match_rs_mx, MX1;
 	equality5 mx1_eq (.out(reg_match_rs_mx), .a(rd_m), .b(rs_x));
-	assign MX1 = (reg_match_rs_mx && (isALUOp_x || isAddi_x || isSW_x || isLW_x 
+	assign MX1 = (reg_match_rs_mx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isLoadSnake_x
 		|| isBne_x || isBlt_x))
 		&& (isALUOp_m || isAddi_m);
 	
@@ -391,7 +401,7 @@ module processor(
 	
 	wire reg_match_rs_wx, WX1;
 	equality5 wx1_eq (.out(reg_match_rs_wx), .a(rd_w), .b(rs_x));
-	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x 
+	assign WX1 = (reg_match_rs_wx && (isALUOp_x || isAddi_x || isSW_x || isLW_x || isLoadSnake_x
 		|| isBne_x || isBlt_x || isBex_x))
 		&& (isALUOp_w || isAddi_w || isLW_w);
 	
@@ -561,6 +571,9 @@ module processor(
 	assign rs_m = ir_xm[21:17];
 	assign rt_m = ir_xm[16:12];
 	
+	wire isLoadSnake_m;
+	assign isLoadSnake_m = ~opm[4]&opm[3]&opm[2]&opm[1]&opm[0];
+	
 	assign isSW_m = ~opm[4]&~opm[3]&opm[2]&opm[1]&opm[0];
 	assign isLW_m = ~opm[4]&opm[3]&~opm[2]&~opm[1]&~opm[0];
 	assign isALUOp_m = ~opm[4]&~opm[3]&~opm[2]&~opm[1]&~opm[0];
@@ -574,7 +587,7 @@ module processor(
 	assign isSetx_m = opm[4]&~opm[3]&opm[2]&~opm[1]&opm[0];
 	
 	assign isR_m = isALUOp_m;
-	assign isI_m = isAddi_m || isSW_m || isLW_m;
+	assign isI_m = isAddi_m || isSW_m || isLW_m || isLoadSnake_m;
 	
 	wire [26:0] T_m;
 	assign T_m = ir_xm[26:0];
@@ -602,6 +615,9 @@ module processor(
 	assign rs_w = ir_mw[21:17];
 	assign rt_w = ir_mw[16:12];
 	
+	wire isLoadSnake_w;
+	assign isLoadSnake_w = ~opw[4]&opw[3]&opw[2]&opw[1]&opw[0];
+	
 	assign isSW_w = ~opw[4]&~opw[3]&opw[2]&opw[1]&opw[0];
 	assign isLW_w = ~opw[4]&opw[3]&~opw[2]&~opw[1]&~opw[0];
 	assign isALUOp_w = ~opw[4]&~opw[3]&~opw[2]&~opw[1]&~opw[0];
@@ -621,6 +637,21 @@ module processor(
 	assign T_w = ir_mw[26:0];
 	assign T_w_extend[26:0] = T_w;
 	assign T_w_extend[31:27] = 5'b00000;
+	
+	
+	// Load Snake register
+	
+	snake_register sr1 (
+		.value_in(d_mw), 
+		.index(o_mw-1600), 
+		.clock(clock), 
+		.reset(reset),
+		.enable(isLoadSnake_w),
+		.value_out(snake)
+	);
+	
+	
+	
 	
 	assign ctrl_writeEnable = isALUOp_w || isLW_w || isAddi_w || isRStatus_mw || isSetx_w;
 	
