@@ -92,7 +92,8 @@ module processor(
     output [31:0] data_writeReg;
     input [31:0] data_readRegA, data_readRegB;
 	 
-	 output [226*32-1:0] snake;
+	 // changed from 226
+	 output [250*32-1:0] snake;
 	 
 	 wire [4:0] rd_m, rs_m, rt_m;
 	 wire [4:0] rd_w, rs_w, rt_w;
@@ -605,6 +606,17 @@ module processor(
    assign wren = isSW_m;
 	
 	
+	// Load Snake register
+	
+	snake_register sr1 (
+		.value_in(d_mw), 
+		.index(o_mw-1600), 
+		.clock(clock), 
+		.reset(reset),
+		.enable(isLoadSnake_m),
+		.value_out(snake)
+	);
+	
 	//========================================= Write-back Stage
 	
 	wire [4:0] opw;
@@ -637,18 +649,6 @@ module processor(
 	assign T_w = ir_mw[26:0];
 	assign T_w_extend[26:0] = T_w;
 	assign T_w_extend[31:27] = 5'b00000;
-	
-	
-	// Load Snake register
-	
-	snake_register sr1 (
-		.value_in(d_mw), 
-		.index(o_mw-1600), 
-		.clock(clock), 
-		.reset(reset),
-		.enable(isLoadSnake_w),
-		.value_out(snake)
-	);
 	
 	
 	

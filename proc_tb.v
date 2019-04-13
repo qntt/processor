@@ -75,10 +75,19 @@ module proc_tb();
 	 wire match_write_rs = dut.my_processor.match_write_rs;
 	 wire isLoadToALU = dut.my_processor.isLoadToALU;
 	 
+	 wire [63:0] snake = dut.my_processor.snake;
+	 wire [31:0] o_mw = dut.my_processor.o_mw;
+	 wire isLoadSnake_w = dut.my_processor.isLoadSnake_w;
+	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
+		  
+		  // snake board
+		  $monitor("pc: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, snake: %b, d_mw: %d, o_mw: %d, isLoadSnake_w: %d", 
+		  pc, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, snake, d_mw, o_mw, isLoadSnake_w);
+		  
 		  
 		  // multdiv
 		  //$monitor("pc: %d, alu_input_1: %d, alu_input_2: %d, ctrl_MULT: %d, data_resultRDY: %d, multdiv_result: %d, isStillMultDiv: %d, data_writeReg: %d, isLW2ALU: %d",
@@ -101,8 +110,8 @@ module proc_tb();
 		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, isBex_x, bne_alu, ctrl_writeEnable, ctrl_writeReg, data_writeReg, sel_alu_input1);
 		  
 		  // processor output monitor
-		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
-		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
+		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
+		  //pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         
