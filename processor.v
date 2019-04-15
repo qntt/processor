@@ -145,46 +145,7 @@ module processor(
 	wire [31:0] ir_fd, pc_fd, next_pc;
 	
 	wire [31:0] ir_in_fd;
-	assign ir_in_fd = isBranch || isLoadToALU ? noop : q_imem;
-	
-	
-	
-	wire [4:0] opf;
-	assign opf = ir_in_fd[31:27];
-	
-	wire [4:0] rd_f, rs_f, rt_f;
-	assign rd_f = ir_in_fd[26:22];
-	assign rs_f = ir_in_fd[21:17];
-	assign rt_f = ir_in_fd[16:12];
-	
-	wire isLoadSnake_f;
-	assign isLoadSnake_f = ~opf[4]&opf[3]&opf[2]&opf[1]&opf[0];
-	
-	wire isSW_f;
-	assign isSW_f = ~opf[4]&~opf[3]&opf[2]&opf[1]&opf[0];
-	wire isLW_f;
-	assign isLW_f = ~opf[4]&opf[3]&~opf[2]&~opf[1]&~opf[0];
-	wire isALUOp_f;
-	assign isALUOp_f = ~opf[4]&~opf[3]&~opf[2]&~opf[1]&~opf[0];
-	wire isAddi_f;
-	assign isAddi_f = ~opf[4]&~opf[3]&opf[2]&~opf[1]&opf[0];
-	
-	wire isJ_f;
-	assign isJ_f = ~opf[4]&~opf[3]&~opf[2]&~opf[1]&opf[0];
-	wire isBne_f;
-	assign isBne_f = ~opf[4]&~opf[3]&~opf[2]&opf[1]&~opf[0];
-	wire isJal_f;
-	assign isJal_f = ~opf[4]&~opf[3]&~opf[2]&opf[1]&opf[0];
-	wire isJr_f;
-	assign isJr_f = ~opf[4]&~opf[3]&opf[2]&~opf[1]&~opf[0];
-	wire isBlt_f;
-	assign isBlt_f = ~opf[4]&~opf[3]&opf[2]&opf[1]&~opf[0];
-	
-	wire isBex_f;
-	assign isBex_f = opf[4]&~opf[3]&opf[2]&opf[1]&~opf[0];
-	wire isSetx_f;
-	assign isSetx_f = opf[4]&~opf[3]&opf[2]&~opf[1]&opf[0];
-	
+	assign ir_in_fd = isBranch ? noop : q_imem;
 	
 	latch_fd latch_fd1 (.ir_in(ir_in_fd), .pc_in(next_pc), .clock(clock), .reset(reset), 
 		.enable(~isStall_fd), .ir_out(ir_fd), .pc_out(pc_fd));
@@ -204,8 +165,12 @@ module processor(
 	
 	wire [31:0] ir_dx, pc_dx, a_dx, b_dx, a_out_regfile, b_out_regfile, a_in_dx, b_in_dx;
 	
+	// all1 is a noop
+	wire [31:0] all1;
+	assign all1 = 32'b11111111111111111111111111111111;
+	
 	wire [31:0] ir_in_dx;
-	assign ir_in_dx = isBranch || isLoadToALU ? noop : ir_fd;
+	assign ir_in_dx = isBranch || isLoadToALU ? all1 : ir_fd;
 		
 	latch_dx latch_dx1 (.ir_in(ir_in_dx), .pc_in(pc_fd), .a_in(a_in_dx), .b_in(b_in_dx), 
 		.clock(clock), .reset(reset), .enable(~isStall_dx), .ir_out(ir_dx), .pc_out(pc_dx), 
@@ -518,7 +483,7 @@ module processor(
 	// Check if multdiv is still ongoing
 	wire startMultDiv, ready_reg;
 	dflipflop dff_startMultDiv (.d(isMul_x || isDiv_x), 
-		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(~isLoadToALU), .q(ready_reg));
+		.clk(clock), .clrn(1'b1), .prn(1'b1), .ena(1'b1), .q(ready_reg));
 	assign startMultDiv = (isMul_x || isDiv_x) && ~ready_reg;
 	
 	wire isStillMultDiv, pre_isStillMultDiv;
@@ -532,7 +497,7 @@ module processor(
 	assign isStall_xm = 1'b0; //isLoadToALU;
 	
 	multdiv md1 (.data_operandA(alu_input_1), .data_operandB(alu_input_2), 
-		.ctrl_MULT(isMul_x && startMultDiv && ~isLoadToALU), 
+		.ctrl_MULT(isMul_x && startMultDiv), 
 		.ctrl_DIV(isDiv_x && startMultDiv && ~isLoadToALU), .clock(clock), 
 		.data_result(multdiv_result), .data_exception(data_exception), .data_resultRDY(data_resultRDY));
 		
@@ -558,7 +523,7 @@ module processor(
 	// 00: normal alu output, 01: noop(branches or still in multdiv computation)
 	// 10: finished multdiv, dataresultRDY is 1, 11: unused
 	wire [1:0] o_in_x_sel;
-	assign o_in_x_sel[0] = isBranch || isStillMultDiv || isLoadToALU;
+	assign o_in_x_sel[0] = isBranch || isStillMultDiv;
 	assign o_in_x_sel[1] = data_resultRDY;
 	
 	mux_4_1 o_in_x_mux (
@@ -575,16 +540,13 @@ module processor(
 	wire [31:0] ir_in_xm;
 	assign ir_in_xm = isBranch || (isStillMultDiv && ~data_resultRDY) ? noop : ir_dx;
 	
-	wire [31:0] all1;
-	assign all1 = 32'b11111111111111111111111111111111;
-	
 	wire [31:0] ir_in_xm_jal;
 	assign ir_in_xm_jal[31:27] = 5'b00000;
 	assign ir_in_xm_jal[26:22] = 5'd31;
 	assign ir_in_xm_jal[21:0] = 22'b0;
 	
 	wire [31:0] ir_in_xm_final;
-	assign ir_in_xm_final = isLoadToALU ? all1: (isJal_x ? ir_in_xm_jal : ir_in_xm);
+	assign ir_in_xm_final = (isJal_x ? ir_in_xm_jal : ir_in_xm);
 	
 	wire [31:0] o_in_x_final;
 	assign o_in_x_final = isJal_x ? pc_dx : o_in_x;
@@ -707,14 +669,14 @@ module processor(
 		.in0(o_mw), .in1(rStatus_mw), .in2(T_w_extend), .in3(d_mw),
 		.select(data_write_sel));
 		
-	wire rtf_rdd, rsf_rdd;
-	equality5 loadStall1 (.out(rtf_rdd), .a(rt_f), .b(rd_d));
-	equality5 loadStall2 (.out(rsf_rdd), .a(rs_f), .b(rd_d));
+	wire rtd_rdx, rsd_rdx;
+	equality5 loadStall1 (.out(rtd_rdx), .a(rt_d), .b(rd_x));
+	equality5 loadStall2 (.out(rsd_rdx), .a(rs_d), .b(rd_x));
 	//assign isLoadToALU = isLW_m && ((rtx_rdm) || (rsx_rdm && ~isSW_x)) && isALUOp_x;
-	assign isLoadToALU = isLW_d && ( 
-		(rtf_rdd && (isALUOp_f))  
+	assign isLoadToALU = isLW_x && ( 
+		(rtd_rdx && (isALUOp_d))  
 		|| 
-		(rsf_rdd && (isSW_f || isALUOp_f || isAddi_f || isLW_f || isBne_f || isBlt_f))
+		(rsd_rdx && (isSW_d || isALUOp_d || isAddi_d || isLW_d || isBne_d || isBlt_d))
 	);
 	 
 
