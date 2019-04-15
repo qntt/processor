@@ -466,13 +466,12 @@ module processor(
 	// ====== Multdiv
 	
 	wire isAdd_x;
-	assign isAdd_x = ~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&~aluop[0];
+	assign isAdd_x = (~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&~aluop[0]) && isALUOp_x;
 	wire isSub_x;
-	assign isSub_x = ~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&aluop[0];
+	assign isSub_x = (~aluop[4]&~aluop[3]&~aluop[2]&~aluop[1]&aluop[0]) && isALUOp_x;
 	wire isMul_x;
-	assign isMul_x = ~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&~aluop[0];
-	wire isDiv_x;
-	assign isDiv_x = ~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&aluop[0];
+	assign isMul_x = (~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&~aluop[0]) && isALUOp_x;
+	assign isDiv_x = (~aluop[4]&~aluop[3]&aluop[2]&aluop[1]&aluop[0]) && isALUOp_x;
 	
 	wire [31:0] multdiv_result;
 	wire data_exception, data_resultRDY;
@@ -672,7 +671,12 @@ module processor(
 	wire rtx_rdm, rsx_rdm;
 	equality5 loadStall1 (.out(rtx_rdm), .a(rt_x), .b(rd_m));
 	equality5 loadStall2 (.out(rsx_rdm), .a(rs_x), .b(rd_m));
-	assign isLoadToALU = isLW_m && ((rtx_rdm) || (rsx_rdm && ~isSW_x)) && isALUOp_x;
+	//assign isLoadToALU = isLW_m && ((rtx_rdm) || (rsx_rdm && ~isSW_x)) && isALUOp_x;
+	assign isLoadToALU = isLW_m && ( 
+		(rtx_rdm && (isALUOp_x))  
+		|| 
+		(rsx_rdm && (isSW_x || isALUOp_x || isAddi_x || isLW_x || isBne_x || isBlt_x))
+	);
 	 
 
 endmodule 

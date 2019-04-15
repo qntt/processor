@@ -2,12 +2,12 @@
 
 module proc_tb();
 
-	 integer CYCLE_LIMIT = 100;
+	 integer CYCLE_LIMIT = 500;
 	 
     // inputs to the proc are reg type
     reg            clock, reset;
 
-    skeleton dut (clock, reset);
+    skeleton_proc dut (clock, reset);
 
     wire[31:0] pc = dut.my_processor.pc;
 	 wire[31:0] o_xm = dut.my_processor.o_xm;
@@ -91,6 +91,11 @@ module proc_tb();
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
 		  
+		  // processor output monitor
+		  //$monitor("pc: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, isStillMultDiv: %d,  isLoadToALU: %d", 
+		  //pc, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, isStillMultDiv, isLoadToALU);
+		  
+		  
 		  // snake board
 		  //$monitor("pc: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, snake: %b, d_mw: %d, o_mw: %d, isLoadSnake_w: %d", 
 		  //pc, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, snake, d_mw, o_mw, isLoadSnake_w);
@@ -117,8 +122,8 @@ module proc_tb();
 		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, isBex_x, bne_alu, ctrl_writeEnable, ctrl_writeReg, data_writeReg, sel_alu_input1);
 		  
 		  // processor output monitor
-		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
-		  //pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
+		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isLoadToALU: %d", 
+		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isLoadToALU);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         
