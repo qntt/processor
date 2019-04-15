@@ -86,19 +86,10 @@ module proc_tb();
 	 
 	 wire [10*32-1 : 0] snake_data;
 	 
-	 wire [11:0] addressVGA = dut.address_dmem_fromVGA;
-	 wire [31:0] dataVGA = dut.data_fromVGA;
-	 wire wrenVGA = dut.wren_fromVGA;
-	 wire [31:0] qVGA = q_dmem_toVGA;
-	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
-		  
-		  // snake game monitor
-		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, addressVGA: %d, dataVGA: %d, wrenVGA: %d, qVGA: %d", 
-		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, addressVGA, dataVGA, wrenVGA, qVGA);
 		  
 		  // snake board
 		  //$monitor("pc: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, snake: %b, d_mw: %d, o_mw: %d, isLoadSnake_w: %d", 

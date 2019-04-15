@@ -12,12 +12,7 @@
 module skeleton_proc(clock, reset);
     input clock, reset;
 	 
-	 wire [11:0] address_dmem_fromVGA;
-	 wire [31:0] data_fromVGA;
-	 wire wren_fromVGA;
-	 wire [31:0] q_dmem_toVGA;
-	 
-	 wire [10*32-1 : 0] snake_data;
+	 wire [12*32-1 : 0] snake_data;
 	 
 
     /** IMEM **/
@@ -88,11 +83,7 @@ module skeleton_proc(clock, reset);
         data_writeReg,                  // O: Data to write to for regfile
         data_readRegA,                  // I: Data from port A of regfile
         data_readRegB,                   // I: Data from port B of regfile
-		  snake_data,
-		  address_dmem_fromVGA,
-		  data_fromVGA,
-		  wren_fromVGA,
-		  q_dmem_toVGA
+		  snake_data
     );
 
 endmodule

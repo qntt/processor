@@ -71,12 +71,7 @@ module processor(
     data_readRegA,                  // I: Data from port A of regfile
     data_readRegB,                  // I: Data from port B of regfile
 	 
-	 snake,
-	 address_dmem_fromVGA,
-	 data_fromVGA,
-	 wren_fromVGA,
-	 q_dmem_toVGA
-	 
+	 snake
 );
     // Control signals
     input clock, reset;
@@ -98,14 +93,7 @@ module processor(
     input [31:0] data_readRegA, data_readRegB;
 	 
 	 // changed from 226
-	 output [10*32-1:0] snake;
-	 
-	 input [11:0] address_dmem_fromVGA;
-	 input [31:0] data_fromVGA;
-	 input wren_fromVGA;
-	 output [31:0] q_dmem_toVGA;
-
-	 
+	 output [12*32-1:0] snake;
 	 
 	 wire [4:0] rd_m, rs_m, rt_m;
 	 wire [4:0] rd_w, rs_w, rt_w;
@@ -615,11 +603,9 @@ module processor(
 	
 
 	
-	assign address_dmem = ( snake[32*9] == 1'b1 ) ? address_dmem_fromVGA : o_xm[11:0];
-   assign data = WM ? data_writeReg : b_xm;
-   assign wren = ( snake[32*9] == 1'b1 ) ? wren_fromVGA : isSW_m;
-	
-	assign q_dmem_toVGA = q_dmem;
+	assign address_dmem = o_xm[11:0];
+   	assign data = WM ? data_writeReg : b_xm;
+   	assign wren = isSW_m;
 	
 	
 	// Load Snake register
