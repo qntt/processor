@@ -96,8 +96,8 @@ module proc_tb();
         clock = 1'b0;    // at time 0
 		  
 		  // isloadtoALU monitor
-		  $monitor("pc: %d, isLoadToALU: %d, isLW_x: %d, ir_dx: %b, ir_xm: %b", 
-		  pc, isLoadToALU, isLW_x, ir_dx, ir_xm);
+		  //$monitor("pc: %d, isLoadToALU: %d, isLW_x: %d, ir_dx: %b, ir_xm: %b", 
+		  //pc, isLoadToALU, isLW_x, ir_dx, ir_xm);
 		  
 		  // processor output monitor
 		  //$monitor("pc: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, isStillMultDiv: %d,  isLoadToALU: %d", 
@@ -130,8 +130,8 @@ module proc_tb();
 		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, isBex_x, bne_alu, ctrl_writeEnable, ctrl_writeReg, data_writeReg, sel_alu_input1);
 		  
 		  // processor output monitor
-		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isLoadToALU: %d", 
-		  //pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isLoadToALU);
+		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
+		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         
