@@ -93,7 +93,7 @@ module processor(
     input [31:0] data_readRegA, data_readRegB;
 	 
 	 // changed from 226
-	 output [12*32-1:0] snake;
+	 output [359:0] snake;
 	 
 	 wire [4:0] rd_m, rs_m, rt_m;
 	 wire [4:0] rd_w, rs_w, rt_w;
@@ -610,12 +610,14 @@ module processor(
 	
 	// Load Snake register
 	
+	wire isLoadSnake_w;
+	
 	snake_register sr1 (
 		.value_in(d_mw), 
-		.index(o_mw-1600), 
+		.index(o_mw-2100), 
 		.clock(clock), 
 		.reset(reset),
-		.enable(isLoadSnake_m),
+		.enable(isLoadSnake_w),
 		.value_out(snake)
 	);
 	
@@ -629,7 +631,6 @@ module processor(
 	assign rs_w = ir_mw[21:17];
 	assign rt_w = ir_mw[16:12];
 	
-	wire isLoadSnake_w;
 	assign isLoadSnake_w = ~opw[4]&opw[3]&opw[2]&opw[1]&opw[0];
 	
 	assign isSW_w = ~opw[4]&~opw[3]&opw[2]&opw[1]&opw[0];

@@ -12,7 +12,7 @@
 module skeleton_proc(clock, reset);
     input clock, reset;
 	 
-	 wire [12*32-1 : 0] snake_data;
+	 wire [359 : 0] snake_data;
 	 
 
     /** IMEM **/

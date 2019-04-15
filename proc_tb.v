@@ -75,7 +75,7 @@ module proc_tb();
 	 wire match_write_rs = dut.my_processor.match_write_rs;
 	 wire isLoadToALU = dut.my_processor.isLoadToALU;
 	 
-	 wire [63:0] snake = dut.my_processor.snake;
+	 //wire [63:0] snake = dut.my_processor.snake;
 	 wire [31:0] o_mw = dut.my_processor.o_mw;
 	 wire isLoadSnake_w = dut.my_processor.isLoadSnake_w;
 	 
@@ -84,16 +84,25 @@ module proc_tb();
 	 wire wren_fromVGA;
 	 wire [31:0] q_dmem_toVGA;
 	 
-	 wire [10*32-1 : 0] snake_data;
+	 //wire [10*32-1 : 0] snake_data;
 	 
 	 wire isLW_x = dut.my_processor.isLW_x;
 	 wire [31:0] ir_dx = dut.my_processor.ir_dx;
 	 wire [31:0] ir_xm = dut.my_processor.ir_xm;
 	 
+	 wire [327:0] snake = dut.my_processor.snake;
+	 wire [1:0] dir1 = snake[1:0];
+	 wire [31:0] head1 = snake[231:200];
+	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
+		  
+		  // processor output monitor
+		  $monitor("pc: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, dir1: %b, head1: %d, isLoadSnake_w: %b, d_mw: %d, o_mw: %d", 
+		  pc, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, dir1, head1, isLoadSnake_w, d_mw, o_mw);
+		  
 		  
 		  // isloadtoALU monitor
 		  //$monitor("pc: %d, isLoadToALU: %d, isLW_x: %d, ir_dx: %b, ir_xm: %b", 
@@ -130,8 +139,8 @@ module proc_tb();
 		  //pc, alu_input_1, alu_input_2, isBranch, branch_value, pc_branch_select, isBex_x, bne_alu, ctrl_writeEnable, ctrl_writeReg, data_writeReg, sel_alu_input1);
 		  
 		  // processor output monitor
-		  $monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
-		  pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
+		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d", 
+		  //pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren);
 		  
 		  //$monitor("pc: %d, address_imem: %d, ctrl_readRegA: %d, ctrl_readRegB: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, isBranch: %d, branch_value: %d, alu_out: %d\n\n\n", pc, address_imem, ctrl_readRegA, ctrl_readRegB, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, isBranch, branch_value, alu_out);
         

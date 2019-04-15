@@ -265,6 +265,24 @@ module register (
 
 endmodule
 
+
+module register_2 (
+    data_out,
+	 clock,
+    ctrl_writeEnable,
+    ctrl_reset, data_in
+);
+
+   input clock, ctrl_writeEnable, ctrl_reset;
+   input [1:0] data_in;
+	output [1:0] data_out;
+	
+	dffe_ref d0(data_out[0], data_in[0], clock, ctrl_writeEnable, ctrl_reset);
+	dffe_ref d1(data_out[1], data_in[1], clock, ctrl_writeEnable, ctrl_reset);
+
+endmodule
+
+
 module register_neg (
     data_out,
 	 clock,
