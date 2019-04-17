@@ -6,10 +6,15 @@ module proc_tb();
 	 
     // inputs to the proc are reg type
     reg            clock, reset;
+	 wire [359:0] snake;
+	 wire [31:0] d_mw_out, o_mw_out;
+	 wire isLoadSnake_w_out;
+	 
+	 wire [31:0] a_in_dx_out, b_in_dx_out;
 
-    skeleton_proc dut (clock, reset);
+    skeleton_proc dut (clock, reset, snake, d_mw_out, o_mw_out, isLoadSnake_w_out, a_in_dx_out, b_in_dx_out);
 
-    wire[31:0] pc = dut.my_processor.pc;
+    /*wire[31:0] pc = dut.my_processor.pc;
 	 wire[31:0] o_xm = dut.my_processor.o_xm;
 	 wire[31:0] b_xm = dut.my_processor.b_xm;
 	 wire[31:0] a_dx = dut.my_processor.a_dx;
@@ -90,18 +95,22 @@ module proc_tb();
 	 wire [31:0] ir_dx = dut.my_processor.ir_dx;
 	 wire [31:0] ir_xm = dut.my_processor.ir_xm;
 	 
-	 wire [327:0] snake = dut.my_processor.snake;
+	 wire [359:0] snake = dut.my_processor.snake;
 	 wire [1:0] dir1 = snake[1:0];
 	 wire [31:0] head1 = snake[231:200];
+	 wire [31:0] stage = snake[359:328];*/
+	
 	 
     initial
     begin
         $display($time, "<< Starting the Simulation >>");
         clock = 1'b0;    // at time 0
 		  
+		  $monitor("clock: %d, snake: %d, d_mw: %d, o_mw: %d, isLoadSnake: %b", clock, snake, d_mw_out, o_mw_out, isLoadSnake_w_out, a_in_dx_out, b_in_dx_out);
+		  
 		  // processor output monitor
-		  $monitor("pc: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, dir1: %b, head1: %d, isLoadSnake_w: %b, d_mw: %d, o_mw: %d", 
-		  pc, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, dir1, head1, isLoadSnake_w, d_mw, o_mw);
+		  //$monitor("pc: %d, data_writeReg: %d, ctrl_writeReg: %d, ctrl_writeEnable: %d, address_dmem: %d, data: %d, wren: %d, dir1: %b, head1: %d, isLoadSnake_w: %b, stage: %d, d_mw: %d, o_mw: %d, d_mw(binary): %b", 
+		  //pc, data_writeReg, ctrl_writeReg, ctrl_writeEnable, address_dmem, data, wren, dir1, head1, isLoadSnake_w, stage, d_mw, o_mw, d_mw);
 		  
 		  
 		  // isloadtoALU monitor

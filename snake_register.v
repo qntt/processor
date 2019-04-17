@@ -3,7 +3,7 @@ module snake_register (value_in, index, clock, reset, enable, value_out);
 input [31:0] value_in, index;
 input clock, reset, enable;
 
-output [359:0] value_out;
+output [423:0] value_out;
 
 genvar i;
 
@@ -20,7 +20,8 @@ generate
 endgenerate
 
 
-register snake_reg_head1 (
+
+register snake_reg_head1position (
 	 .data_out(value_out[231:200]),
 	 .clock(clock),
 	 .ctrl_writeEnable((index == 100) && enable),
@@ -28,7 +29,7 @@ register snake_reg_head1 (
 	 .data_in(value_in)
 );
 
-register snake_reg_head2 (
+register snake_reg_head2position (
 	 .data_out(value_out[263:232]),
 	 .clock(clock),
 	 .ctrl_writeEnable((index == 101) && enable),
@@ -56,6 +57,22 @@ register snake_reg_stage (
 	 .data_out(value_out[359:328]),
 	 .clock(clock),
 	 .ctrl_writeEnable((index == 104) && enable),
+	 .ctrl_reset(reset),
+	 .data_in(value_in)
+);
+
+register snake_reg_head1 (
+	 .data_out(value_out[391:360]),
+	 .clock(clock),
+	 .ctrl_writeEnable((index == 105) && enable),
+	 .ctrl_reset(reset),
+	 .data_in(value_in)
+);
+
+register snake_reg_head2 (
+	 .data_out(value_out[423:392]),
+	 .clock(clock),
+	 .ctrl_writeEnable((index == 106) && enable),
 	 .ctrl_reset(reset),
 	 .data_in(value_in)
 );

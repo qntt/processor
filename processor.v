@@ -71,7 +71,7 @@ module processor(
     data_readRegA,                  // I: Data from port A of regfile
     data_readRegB,                  // I: Data from port B of regfile
 	 
-	 snake
+	 snake//, d_mw_out, o_mw_out, isLoadSnake_w_out, a_in_dx_out, b_in_dx_out
 );
     // Control signals
     input clock, reset;
@@ -93,7 +93,12 @@ module processor(
     input [31:0] data_readRegA, data_readRegB;
 	 
 	 // changed from 226
-	 output [359:0] snake;
+	 output [423:0] snake;
+	 
+	 //output [31:0] d_mw_out, o_mw_out;
+	 //output isLoadSnake_w_out;
+	 
+	 //output [31:0] a_in_dx_out, b_in_dx_out;
 	 
 	 wire [4:0] rd_m, rs_m, rt_m;
 	 wire [4:0] rd_w, rs_w, rt_w;
@@ -559,6 +564,8 @@ module processor(
 	//========================================= Memory Stage
 	
 	wire [31:0] ir_mw, o_mw, d_mw;
+	//assign o_mw_out = o_mw;
+	//assign d_mw_out = d_mw;
 	
 	latch_mw latch_mw1 (.ir_in(ir_xm), .o_in(o_xm), .d_in(q_dmem), .isRStatus_in(isRStatus_xm), 
 		.rStatus_in(rStatus_xm), .clock(clock), .reset(reset), .ir_out(ir_mw), .o_out(o_mw), 
@@ -611,11 +618,12 @@ module processor(
 	// Load Snake register
 	
 	wire isLoadSnake_w;
+	assign isLoadSnake_w_out = isLoadSnake_w;
 	
 	snake_register sr1 (
 		.value_in(d_mw), 
-		.index(o_mw-2100), 
-		.clock(clock), 
+		.index(o_mw), 
+		.clock(~clock), 
 		.reset(reset),
 		.enable(isLoadSnake_w),
 		.value_out(snake)
